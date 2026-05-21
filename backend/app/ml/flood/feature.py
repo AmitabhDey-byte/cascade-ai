@@ -110,14 +110,14 @@ def generate_synthetic_training_data(n_samples: int = 800) -> Tuple[np.ndarray, 
         storm_risk         = float(max_hourly > 10)
         elevation          = np.random.uniform(1.0, 8.0)
 
-        # Physics-based risk score
+    
         risk = (
             0.30 * soil_moisture +
             0.20 * min(precip_24h / 80, 1.0) +
             0.15 * min(precip_48h / 120, 1.0) +
             0.10 * min(precip_72h / 160, 1.0) +
             0.15 * storm_risk +
-            0.10 * (1 - min(elevation / 8.0, 1.0))  # lower elevation = higher risk
+            0.10 * (1 - min(elevation / 8.0, 1.0))  
         )
         risk = float(np.clip(risk + np.random.normal(0, 0.05), 0.0, 1.0))
 

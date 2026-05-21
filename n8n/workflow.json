@@ -1,0 +1,298 @@
+{
+  "name": "CascadeAI Alert Pipeline",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-webhook",
+      "name": "Flood Risk Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cascade-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "notes": "Python posts here from services/n8n_trigger.py when risk > 0.70. Payload: { high_risk_tiles: [...], risk_scores: {...}, timestamp: '...' }"
+    },
+    {
+      "id": "node-check-risk",
+      "name": "Is Risk Above Threshold",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [420, 300],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.high_risk_tiles.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "notes": "Safety check — only continues if there are actually high risk tiles in the payload"
+    },
+    {
+      "id": "node-generate-report",
+      "name": "Generate Claude Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [640, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/report/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tile_ids\": {{ JSON.stringify($json.high_risk_tiles) }},\n  \"force\": true\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "notes": "Calls FastAPI /report/generate — this triggers RAG + Claude internally and returns the full conservation report"
+    },
+    {
+      "id": "node-get-species",
+      "name": "Get Priority Species",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [640, 380],
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:8000/species/high-risk",
+        "options": {}
+      },
+      "notes": "Fetches all Critically Endangered and Endangered species currently in high-risk tiles"
+    },
+    {
+      "id": "node-format-sms",
+      "name": "Format SMS Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [880, 200],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sms-body",
+              "name": "sms_body",
+              "value": "=CASCADEAI FLOOD ALERT\n\nHigh Risk Tiles: {{ $('Flood Risk Webhook').item.json.high_risk_tiles.join(', ') }}\n\nSpecies at Risk: {{ $('Generate Claude Report').item.json.species_affected.join(', ') }}\n\nRisk Summary: {{ $('Generate Claude Report').item.json.risk_summary }}\n\nImmediate Action: {{ $('Generate Claude Report').item.json.ranger_instructions }}\n\nTime: {{ $('Flood Risk Webhook').item.json.timestamp }}\nFull report on dashboard.",
+              "type": "string"
+            },
+            {
+              "id": "report-id",
+              "name": "report_id",
+              "value": "={{ $('Generate Claude Report').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "tiles-count",
+              "name": "tiles_count",
+              "value": "={{ $('Flood Risk Webhook').item.json.high_risk_tiles.length }}",
+              "type": "number"
+            },
+            {
+              "id": "species-count",
+              "name": "species_count",
+              "value": "={{ $('Generate Claude Report').item.json.species_affected.length }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "Formats all data into a clean SMS string for rangers. Edit the template here to change what the SMS says."
+    },
+    {
+      "id": "node-twilio",
+      "name": "Send Ranger SMS",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1100, 200],
+      "parameters": {
+        "operation": "send",
+        "from": "+1XXXXXXXXXX",
+        "to": "+91XXXXXXXXXX",
+        "message": "={{ $json.sms_body }}"
+      },
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio account"
+        }
+      },
+      "notes": "CONFIGURE: Replace from/to numbers. Add your Twilio credentials in n8n credentials manager. Account SID + Auth Token from twilio.com/console"
+    },
+    {
+      "id": "node-sheets",
+      "name": "Log Alert to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1100, 380],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
+          "__rl": true,
+          "mode": "id"
+        },
+        "sheetName": {
+          "value": "AlertLog",
+          "__rl": true,
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $('Flood Risk Webhook').item.json.timestamp }}",
+            "High Risk Tiles": "={{ $('Flood Risk Webhook').item.json.high_risk_tiles.join(', ') }}",
+            "Species Affected": "={{ $('Generate Claude Report').item.json.species_affected.join(', ') }}",
+            "Risk Summary": "={{ $('Generate Claude Report').item.json.risk_summary }}",
+            "Report ID": "={{ $('Format SMS Message').item.json.report_id }}",
+            "SMS Sent": "=true",
+            "Tiles Count": "={{ $('Format SMS Message').item.json.tiles_count }}",
+            "Species Count": "={{ $('Format SMS Message').item.json.species_count }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-creds",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "CONFIGURE: Replace YOUR_GOOGLE_SHEET_ID_HERE with your actual sheet ID from the URL. Create a sheet tab called AlertLog with matching column headers."
+    },
+    {
+      "id": "node-respond",
+      "name": "Respond to Python",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1320, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ok\",\n  \"message\": \"Alert pipeline completed\",\n  \"report_id\": \"{{ $('Format SMS Message').item.json.report_id }}\",\n  \"sms_sent\": true,\n  \"tiles_processed\": {{ $('Format SMS Message').item.json.tiles_count }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "notes": "Sends 200 back to your Python n8n_trigger.py so it knows the pipeline completed"
+    },
+    {
+      "id": "node-no-risk",
+      "name": "No Action Needed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [640, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"ok\", \"message\": \"No high risk tiles — no action taken\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "notes": "Fires when the IF check finds zero high risk tiles — just responds 200 and stops"
+    }
+  ],
+  "connections": {
+    "Flood Risk Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Risk Above Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Risk Above Threshold": {
+      "main": [
+        [
+          {
+            "node": "Generate Claude Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Priority Species",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Action Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Claude Report": {
+      "main": [
+        [
+          {
+            "node": "Format SMS Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format SMS Message": {
+      "main": [
+        [
+          {
+            "node": "Send Ranger SMS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Alert to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Ranger SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond to Python",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [],
+  "pinData": {}
+}
