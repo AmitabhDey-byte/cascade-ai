@@ -1,75 +1,126 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import axios from "axios";
+import type {
+  RiskTile,
+  SpeciesAlert,
+  ConservationReport,
+  StellarBalance,
+  StellarToken,
+  StellarTransaction,
+  PipelineResponse,
+  Horizon,
+} from "@/types";
 
-export type RiskTile = {
-  tile_id: string;
-  lat?: number;
-  lng?: number;
-  score?: number;
-  risk_score?: number;
-  flood_probability_24h?: number;
-  flood_probability_48h?: number;
-  flood_probability_72h?: number;
-  horizon_hours?: number;
-  soil_moisture?: number;
-  precipitation_mm?: number;
-  elevation_m?: number;
-  timestamp?: string;
-};
+// ── Base client ───────────────────────────────────────────────────────────────
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080",
+  timeout: 30000,
+  headers: { "Content-Type": "application/json" },
+});
 
-export type SpeciesObservation = {
-  name: string;
-  latin: string;
-  iucn_status: string;
-  tile_id: string;
-  bioclip_confidence: number;
-  flood_risk_score: number;
-  primary_threat?: string | null;
-  observed_at?: string;
-};
 
-export type SpeciesTileResponse = {
-  tile_id: string;
-  flood_risk_score: number;
-  species: SpeciesObservation[];
-  total_count: number;
-  critical_count: number;
-  last_updated: string;
-};
+// ── Risk ──────────────────────────────────────────────────────────────────────
+export async function getRiskTiles(): Promise<RiskTile[]> {
+  const { data } = await api.get<RiskTile[]>("/risk/tiles");
+  return data;
+}
 
-export type ConservationReport = {
-  report_id: string;
-  timestamp: string;
-  trigger: string;
-  severity: string;
-  tiles_affected: string[];
-  species_affected: string[];
-  flood_risk_summary: string;
-  impact_summary: string;
-  action_plan: string[];
-  dispatched_to: string[];
-  model_used: string;
-};
+export async function getRiskTile(tileId: string): Promise<RiskTile> {
+  const { data } = await api.get<RiskTile>(`/risk/tiles/${tileId}`);
+  return data;
+}
 
-async function request<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`API ${path} failed with ${response.status}`);
+export async function runPipeline(): Promise<PipelineResponse> {
+  const { data } = await api.post<PipelineResponse>("/risk/run");
+  return data;
+}
+
+
+// ── Species ───────────────────────────────────────────────────────────────────
+export async function getSpeciesForTile(tileId: string): Promise<SpeciesAlert[]> {
+  const { data } = await api.get<SpeciesAlert[]>(`/species/tile/${tileId}`);
+  return data;
+}
+
+export async function getHighRiskSpecies(): Promise<SpeciesAlert[]> {
+  const { data } = await api.get<SpeciesAlert[]>("/species/high-risk");
+  return data;
+}
+
+
+// ── Report ────────────────────────────────────────────────────────────────────
+export async function getLatestReport(): Promise<ConservationReport> {
+  const { data } = await api.get<ConservationReport>("/report/latest");
+  return data;
+}
+
+export async function generateReport(
+  tileIds: string[]
+): Promise<ConservationReport> {
+  const { data } = await api.post<ConservationReport>("/report/generate", {
+    tile_ids: tileIds,
+    force:    true,
+  });
+  return data;
+}
+
+
+// ── Blockchain ────────────────────────────────────────────────────────────────
+export async function getStellarBalance(): Promise<StellarBalance> {
+  const { data } = await api.get<StellarBalance>("/blockchain/balance");
+  return data;
+}
+
+export async function getMintedTokens(): Promise<StellarToken[]> {
+  const { data } = await api.get<StellarToken[]>("/blockchain/tokens");
+  return data;
+}
+
+export async function getTransactionHistory(): Promise<StellarTransaction[]> {
+  const { data } = await api.get<StellarTransaction[]>("/blockchain/transactions");
+  return data;
+}
+
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Returns the correct risk score for a given forecast horizon */
+export function tileScore(tile: RiskTile, horizon: Horizon = "24H"): number {
+  switch (horizon) {
+    case "24H": return tile.flood_probability_24h;
+    case "48H": return tile.flood_probability_48h;
+    case "72H": return tile.flood_probability_72h;
+    default:    return tile.risk_score;
   }
-  return response.json() as Promise<T>;
 }
 
-export function getRiskTiles() {
-  return request<RiskTile[]>("/risk/tiles");
+/** Returns a colour string based on risk score */
+export function riskColor(score: number): string {
+  if (score >= 0.8)  return "rgba(239,68,68,0.7)";
+  if (score >= 0.65) return "rgba(245,158,11,0.7)";
+  if (score >= 0.45) return "rgba(234,179,8,0.5)";
+  if (score >= 0.25) return "rgba(16,185,129,0.35)";
+  return "rgba(16,185,129,0.12)";
 }
 
-export function getSpeciesForTile(tileId: string) {
-  return request<SpeciesTileResponse>(`/species/tile/${encodeURIComponent(tileId)}`);
+/** Returns a label string based on risk score */
+export function riskLabel(score: number): string {
+  if (score >= 0.8)  return "CRITICAL";
+  if (score >= 0.65) return "HIGH";
+  if (score >= 0.45) return "MODERATE";
+  if (score >= 0.25) return "LOW";
+  return "MINIMAL";
 }
 
-export function getLatestReport() {
-  return request<ConservationReport>("/report/latest");
+/** Returns a colour class for IUCN status badges */
+export function iucnColor(status: string): string {
+  switch (status) {
+    case "CR": return "text-red-400 border-red-400/30 bg-red-400/10";
+    case "EN": return "text-orange-400 border-orange-400/30 bg-orange-400/10";
+    case "VU": return "text-amber-400 border-amber-400/30 bg-amber-400/10";
+    case "NT": return "text-yellow-400 border-yellow-400/30 bg-yellow-400/10";
+    case "LC": return "text-emerald-400 border-emerald-400/30 bg-emerald-400/10";
+    default:   return "text-white/40 border-white/10 bg-white/5";
+  }
 }
 
-export function tileScore(tile: RiskTile): number {
-  return tile.score ?? tile.risk_score ?? tile.flood_probability_24h ?? 0;
-}
+export type { RiskTile, SpeciesAlert, ConservationReport, StellarBalance, StellarToken };
