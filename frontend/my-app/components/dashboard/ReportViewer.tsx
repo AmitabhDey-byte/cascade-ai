@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { ConservationReport, getLatestReport } from "@/lib/api";
+import { useEffect, useState } from "react";
 
 const REPORT = {
   id: "RPT-2847",
@@ -26,9 +27,25 @@ const DISPATCH_COLORS: Record<string, string> = {
 
 export default function ReportViewer() {
   const [expanded, setExpanded] = useState(true);
+  const [report, setReport] = useState(REPORT);
+
+  useEffect(() => {
+    getLatestReport()
+      .then((apiReport: ConservationReport) => {
+        setReport({
+          id: apiReport.report_id,
+          timestamp: new Date(apiReport.timestamp).toUTCString().slice(5, 22).toUpperCase() + " UTC",
+          severity: apiReport.severity,
+          summary: apiReport.impact_summary || apiReport.flood_risk_summary,
+          actions: apiReport.action_plan,
+          dispatched: apiReport.dispatched_to,
+        });
+      })
+      .catch(() => undefined);
+  }, []);
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 backdrop-blur-sm">
+    <div className="glass-panel rounded-xl p-5">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -46,11 +63,11 @@ export default function ReportViewer() {
       {/* Report ID row */}
       <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
         <div>
-          <span className="text-[9px] font-black tracking-[0.2em] text-white/70">{REPORT.id}</span>
-          <span className="ml-3 text-[7px] tracking-[0.1em] text-white/25">{REPORT.timestamp}</span>
+          <span className="text-[9px] font-black tracking-[0.2em] text-white/70">{report.id}</span>
+          <span className="ml-3 text-[7px] tracking-[0.1em] text-white/25">{report.timestamp}</span>
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          {REPORT.dispatched.map((d) => (
+          {report.dispatched.map((d) => (
             <span key={d} className={`rounded border px-2 py-0.5 text-[7px] tracking-[0.1em] ${DISPATCH_COLORS[d]}`}>
               {d}
             </span>
@@ -63,14 +80,14 @@ export default function ReportViewer() {
           {/* AI Summary */}
           <div className="mb-4 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.03] p-4">
             <div className="text-[7px] tracking-[0.25em] text-emerald-400/50 mb-2">IMPACT SUMMARY</div>
-            <p className="text-[9px] leading-relaxed tracking-[0.08em] text-white/60">{REPORT.summary}</p>
+            <p className="text-[9px] leading-relaxed tracking-[0.08em] text-white/60">{report.summary}</p>
           </div>
 
           {/* Action Plan */}
           <div>
             <div className="text-[7px] tracking-[0.25em] text-white/30 mb-2">ACTION PLAN</div>
             <div className="space-y-1.5">
-              {REPORT.actions.map((action, i) => (
+              {report.actions.map((action, i) => (
                 <div key={i} className="flex gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2.5">
                   <span className="text-[7px] font-black text-white/20 shrink-0 pt-0.5">
                     {String(i + 1).padStart(2, "0")}

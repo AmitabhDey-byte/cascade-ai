@@ -1,6 +1,7 @@
 "use client";
+import { getRiskTiles, RiskTile, tileScore } from "@/lib/api";
 import Nav from "@/components/Nav";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // 10x8 grid of risk tiles (simplified Sundarbans map)
 const GRID_W = 10;
@@ -42,12 +43,28 @@ const HORIZONS = ["24H", "48H", "72H"];
 export default function RiskMap() {
   const [selected, setSelected] = useState<string | null>(null);
   const [horizon, setHorizon] = useState("24H");
+  const [riskData, setRiskData] = useState(RISK_DATA);
 
-  const selectedRisk = selected ? (RISK_DATA[selected] ?? 0.05) : null;
+  useEffect(() => {
+    getRiskTiles()
+      .then((apiTiles: RiskTile[]) => {
+        const nextRiskData = apiTiles.reduce<Record<string, number>>((acc, tile, index) => {
+          const key = tile.tile_id.match(/\d+/)
+            ? `${Math.floor(index % GRID_W)}-${Math.floor(index / GRID_W)}`
+            : tile.tile_id;
+          acc[key] = tileScore(tile);
+          return acc;
+        }, {});
+        if (Object.keys(nextRiskData).length > 0) setRiskData(nextRiskData);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const selectedRisk = selected ? (riskData[selected] ?? 0.05) : null;
   const selectedSpecies = selected ? (SPECIES_IN_TILE[selected] ?? []) : [];
 
   return (
-    <div className="min-h-screen bg-black font-['Orbitron'] text-white">
+    <div className="min-h-screen bg-transparent font-['Orbitron'] text-white">
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
@@ -83,7 +100,7 @@ export default function RiskMap() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Map */}
-          <div className="lg:col-span-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <div className="lg:col-span-2 glass-panel rounded-xl p-6">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-[9px] tracking-[0.25em] text-white/40">SUNDARBANS DELTA BASIN</span>
               <span className="text-[8px] tracking-[0.2em] text-emerald-400/60">FORECAST: {horizon}</span>
@@ -98,7 +115,7 @@ export default function RiskMap() {
               {Array.from({ length: GRID_H }, (_, row) =>
                 Array.from({ length: GRID_W }, (_, col) => {
                   const key = `${col}-${row}`;
-                  const score = RISK_DATA[key] ?? 0;
+                  const score = riskData[key] ?? 0;
                   const isSelected = selected === key;
 
                   return (
@@ -162,7 +179,7 @@ export default function RiskMap() {
           </div>
 
           {/* Tile detail panel */}
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <div className="glass-panel rounded-xl p-6">
             <h3 className="mb-4 text-[10px] font-bold tracking-[0.3em] text-white/50">TILE DETAIL</h3>
 
             {selected && selectedRisk !== null ? (

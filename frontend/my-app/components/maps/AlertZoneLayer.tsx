@@ -11,6 +11,10 @@ type AlertZone = {
   polygon: [number, number][];
 };
 
+type HoverInfo = {
+  object?: AlertZone;
+};
+
 function scoreToOutlineColor(score: number): [number, number, number, number] {
   if (score >= 0.8) return [239, 68, 68, 220];
   if (score >= 0.65) return [245, 158, 11, 190];
@@ -63,7 +67,7 @@ export function buildAlertZoneLayer(zones: AlertZone[] = ALERT_ZONES) {
     pickable: true,
     stroked: true,
     filled: true,
-    onHover: (info: any) => {
+    onHover: (info: HoverInfo) => {
       if (info.object) {
         console.log("Alert zone:", info.object.id, "Score:", info.object.score);
       }

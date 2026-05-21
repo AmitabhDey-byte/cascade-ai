@@ -1,6 +1,7 @@
 "use client";
+import { ConservationReport, getLatestReport } from "@/lib/api";
 import Nav from "@/components/Nav";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const REPORTS = [
   {
@@ -72,10 +73,31 @@ const DISPATCH_COLORS: Record<string, string> = {
 };
 
 export default function Reports() {
+  const [reports, setReports] = useState(REPORTS);
   const [activeReport, setActiveReport] = useState(REPORTS[0]);
 
+  useEffect(() => {
+    getLatestReport()
+      .then((apiReport: ConservationReport) => {
+        const latest = {
+          id: apiReport.report_id,
+          timestamp: new Date(apiReport.timestamp).toUTCString().slice(5, 22).toUpperCase() + " UTC",
+          trigger: apiReport.trigger,
+          severity: apiReport.severity,
+          tilesAffected: apiReport.tiles_affected.length,
+          speciesAffected: apiReport.species_affected.length,
+          summary: apiReport.impact_summary || apiReport.flood_risk_summary,
+          actions: apiReport.action_plan,
+          dispatched: apiReport.dispatched_to,
+        };
+        setReports([latest, ...REPORTS.filter((report) => report.id !== latest.id)]);
+        setActiveReport(latest);
+      })
+      .catch(() => undefined);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-black font-['Orbitron'] text-white">
+    <div className="min-h-screen bg-transparent font-['Orbitron'] text-white">
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
@@ -94,7 +116,7 @@ export default function Reports() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Report list */}
           <div className="space-y-3">
-            {REPORTS.map((r) => {
+            {reports.map((r) => {
               const s = SEVERITY_STYLES[r.severity];
               const isActive = activeReport.id === r.id;
               return (
@@ -102,7 +124,7 @@ export default function Reports() {
                   key={r.id}
                   onClick={() => setActiveReport(r)}
                   className={`cursor-pointer rounded-xl border p-4 transition ${
-                    isActive ? `${s.border} ${s.bg}` : "border-white/[0.07] bg-white/[0.02] hover:border-white/[0.12]"
+                    isActive ? `${s.border} ${s.bg}` : "border-white/[0.12] bg-white/[0.06] backdrop-blur-xl hover:border-white/[0.18]"
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -121,7 +143,7 @@ export default function Reports() {
           </div>
 
           {/* Report detail */}
-          <div className="lg:col-span-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <div className="lg:col-span-2 glass-panel rounded-xl p-6">
             {(() => {
               const s = SEVERITY_STYLES[activeReport.severity];
               return (

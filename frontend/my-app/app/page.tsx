@@ -1,7 +1,5 @@
 "use client";
 import Link from "next/link";
-import Spline from "@splinetool/react-spline";
-import { useEffect, useState } from "react";
 
 const navLinks = [
   { label: "DASHBOARD", href: "/dashboard" },
@@ -18,22 +16,8 @@ const STATS = [
 ];
 
 export default function Home() {
-  const [mounted, setMounted] = useState(false);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    setMounted(true);
-    const interval = setInterval(() => setTick((t) => t + 1), 2000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black font-['Orbitron'] text-white">
-      {/* Spline BG */}
-      <div className="absolute inset-0 z-0 pointer-events-auto">
-        <Spline scene="https://prod.spline.design/gddUGkgCYhGTHkNZ/scene.splinecode" />
-      </div>
-
+    <div className="relative min-h-screen overflow-hidden bg-transparent font-['Orbitron'] text-white">
       {/* Scanline overlay */}
       <div
         className="absolute inset-0 z-[1] pointer-events-none"

@@ -13,7 +13,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-black font-['Orbitron'] text-white flex items-center justify-center overflow-hidden">
+    <div className="relative min-h-screen bg-transparent font-['Orbitron'] text-white flex items-center justify-center overflow-hidden">
       {/* Grid background */}
       <div
         className="absolute inset-0"
@@ -45,7 +45,7 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 backdrop-blur-xl">
+        <div className="glass-panel rounded-2xl p-8">
           <div className="mb-6">
             <h2 className="text-xs font-bold tracking-[0.3em] text-white">SECURE ACCESS</h2>
             <p className="mt-1 text-[9px] tracking-[0.2em] text-white/30">RANGER INTELLIGENCE PORTAL</p>

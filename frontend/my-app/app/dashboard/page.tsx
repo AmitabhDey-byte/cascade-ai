@@ -25,7 +25,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black font-['Orbitron'] text-white">
+    <div className="min-h-screen bg-transparent font-['Orbitron'] text-white">
       {/* Background grid */}
       <div
         className="fixed inset-0 pointer-events-none"

@@ -17,7 +17,10 @@ async def get_latest_report():
     """
     Fetch the most recent Claude-generated impact report from MongoDB.
     """
-    doc = await ReportDoc.find_all().sort(-ReportDoc.timestamp).first_or_none()
+    try:
+        doc = await ReportDoc.find_all().sort(-ReportDoc.timestamp).first_or_none()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Report database unavailable.")
 
     if not doc:
         raise HTTPException(status_code=404, detail="No reports generated yet. POST /report/generate first.")

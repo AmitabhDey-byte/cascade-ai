@@ -1,6 +1,7 @@
 "use client";
+import { getSpeciesForTile, SpeciesObservation } from "@/lib/api";
 import Nav from "@/components/Nav";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const SPECIES = [
   {
@@ -96,15 +97,44 @@ const SPECIES = [
 ];
 
 const FILTERS = ["ALL", "CR", "EN", "VU", "LC"];
+const TILES_TO_LOAD = ["T-023", "T-024", "T-033", "T-044"];
+
+function speciesStyle(status: string) {
+  if (status === "CR") return { color: "text-red-500", border: "border-red-500/20", bg: "bg-red-500/5", statusLabel: "CRITICALLY ENDANGERED" };
+  if (status === "EN") return { color: "text-red-400", border: "border-red-400/20", bg: "bg-red-400/5", statusLabel: "ENDANGERED" };
+  if (status === "VU") return { color: "text-amber-400", border: "border-amber-400/20", bg: "bg-amber-400/5", statusLabel: "VULNERABLE" };
+  return { color: "text-emerald-400", border: "border-emerald-400/20", bg: "bg-emerald-400/5", statusLabel: "LEAST CONCERN" };
+}
 
 export default function Species() {
   const [filter, setFilter] = useState("ALL");
   const [selected, setSelected] = useState<typeof SPECIES[0] | null>(null);
+  const [species, setSpecies] = useState(SPECIES);
 
-  const filtered = filter === "ALL" ? SPECIES : SPECIES.filter((s) => s.status === filter);
+  useEffect(() => {
+    Promise.allSettled(TILES_TO_LOAD.map((tileId) => getSpeciesForTile(tileId))).then((results) => {
+      const nextSpecies = results
+        .flatMap((result) => (result.status === "fulfilled" ? result.value.species : []))
+        .map((sp: SpeciesObservation) => ({
+          name: sp.name,
+          latin: sp.latin,
+          status: sp.iucn_status,
+          tile: sp.tile_id,
+          riskScore: sp.flood_risk_score,
+          confidence: sp.bioclip_confidence,
+          observations: 1,
+          lastSeen: "LIVE",
+          threat: sp.primary_threat ?? "Flood displacement",
+          ...speciesStyle(sp.iucn_status),
+        }));
+      if (nextSpecies.length > 0) setSpecies(nextSpecies);
+    });
+  }, []);
+
+  const filtered = filter === "ALL" ? species : species.filter((s) => s.status === filter);
 
   return (
-    <div className="min-h-screen bg-black font-['Orbitron'] text-white">
+    <div className="min-h-screen bg-transparent font-['Orbitron'] text-white">
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
@@ -146,7 +176,7 @@ export default function Species() {
             { label: "VULNERABLE", value: 2, color: "text-amber-400" },
             { label: "CONFIRMED VIA BIOCLIP", value: 6, color: "text-emerald-400" },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <div key={s.label} className="glass-panel rounded-xl p-4">
               <div className={`text-xl font-black tracking-widest ${s.color}`}>{s.value}</div>
               <div className="mt-1 text-[7px] tracking-[0.15em] text-white/30">{s.label}</div>
             </div>
@@ -163,7 +193,7 @@ export default function Species() {
                 className={`cursor-pointer rounded-xl border p-5 transition ${
                   selected?.name === sp.name
                     ? `${sp.border} ${sp.bg}`
-                    : "border-white/[0.07] bg-white/[0.02] hover:border-white/[0.12]"
+                    : "border-white/[0.12] bg-white/[0.06] backdrop-blur-xl hover:border-white/[0.18]"
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -208,7 +238,7 @@ export default function Species() {
           </div>
 
           {/* Detail panel */}
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6 backdrop-blur-sm">
+          <div className="glass-panel rounded-xl p-6">
             <h3 className="mb-4 text-[10px] font-bold tracking-[0.3em] text-white/40">SPECIES DETAIL</h3>
 
             {selected ? (

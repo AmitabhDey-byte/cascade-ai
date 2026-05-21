@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import SplineBackground from "@/components/SplineBackground";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="bg-black text-white antialiased">{children}</body>
+      <body className="bg-black text-white antialiased">
+        <SplineBackground />
+        <div className="relative z-10 pointer-events-none">{children}</div>
+      </body>
     </html>
   );
 }

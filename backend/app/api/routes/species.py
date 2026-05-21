@@ -22,15 +22,18 @@ async def get_species_for_tile(tile_id: str, days: int = 180):
     """
     since = datetime.utcnow() - timedelta(days=days)
 
-    alerts = await SpeciesAlert.find(
-        SpeciesAlert.tile_id == tile_id,
-        SpeciesAlert.observed_at >= since,
-    ).sort(-SpeciesAlert.bioclip_confidence).to_list()
+    try:
+        alerts = await SpeciesAlert.find(
+            SpeciesAlert.tile_id == tile_id,
+            SpeciesAlert.observed_at >= since,
+        ).sort(-SpeciesAlert.bioclip_confidence).to_list()
 
-    # Get latest risk score for this tile
-    risk_tile = await RiskTile.find(
-        RiskTile.tile_id == tile_id
-    ).sort(-RiskTile.timestamp).first_or_none()
+        # Get latest risk score for this tile
+        risk_tile = await RiskTile.find(
+            RiskTile.tile_id == tile_id
+        ).sort(-RiskTile.timestamp).first_or_none()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Species database unavailable.")
 
     if not alerts:
         raise HTTPException(

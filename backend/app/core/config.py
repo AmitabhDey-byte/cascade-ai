@@ -7,10 +7,10 @@ class Settings(BaseSettings):
     MONGO_DB_NAME:          str   = "cascadeai"
 
     # Anthropic
-    ANTHROPIC_API_KEY:      str
+    ANTHROPIC_API_KEY:      str = ""
 
     # NASA EarthData
-    NASA_EARTHDATA_TOKEN:   str
+    NASA_EARTHDATA_TOKEN:   str = ""
 
     # n8n
     N8N_WEBHOOK_URL:        str   = "http://localhost:5678/webhook/cascade-alert"
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     BIOCLIP_CONFIDENCE_MIN: float = 0.65   # reject species ID below this
 
     class Config:
-        env_file = ".env"
+        env_file = ("backend/.env", ".env")
 
 
 settings = Settings()

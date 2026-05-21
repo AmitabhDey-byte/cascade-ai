@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { getRiskTiles, RiskTile, tileScore } from "@/lib/api";
+import type { ComponentType } from "react";
+import { useEffect, useState } from "react";
 
 // NOTE: Install these before using:
 // npm install deck.gl @deck.gl/react @deck.gl/layers mapbox-gl
@@ -18,6 +20,11 @@ const RISK_TILES = [
   { position: [88.72, 22.18], score: 0.29 },
 ];
 
+type MapTile = {
+  position: number[];
+  score: number;
+};
+
 function scoreToColor(score: number): [number, number, number, number] {
   if (score >= 0.8) return [239, 68, 68, 200];
   if (score >= 0.65) return [245, 158, 11, 180];
@@ -27,14 +34,14 @@ function scoreToColor(score: number): [number, number, number, number] {
 }
 
 // Fallback SVG map used when Deck.gl / Mapbox are not installed yet
-function FallbackMap() {
+function FallbackMap({ tiles = RISK_TILES }: { tiles?: MapTile[] }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center rounded-xl overflow-hidden"
       style={{ background: "radial-gradient(ellipse at 40% 50%, rgba(0,40,20,0.8) 0%, rgba(0,0,0,0.95) 100%)" }}>
 
       {/* Simulated grid tiles */}
       <svg viewBox="0 0 500 350" className="w-full max-w-2xl opacity-90">
-        {RISK_TILES.map((tile, i) => {
+        {tiles.map((tile, i) => {
           const x = ((tile.position[0] - 88.7) / 0.5) * 400 + 40;
           const y = ((22.2 - tile.position[1]) / 0.5) * 300 + 20;
           const [r, g, b, a] = scoreToColor(tile.score);
@@ -72,7 +79,8 @@ function FallbackMap() {
 
 export default function RiskMap() {
   const [deckLoaded, setDeckLoaded] = useState(false);
-  const [DeckComponent, setDeckComponent] = useState<React.ComponentType<any> | null>(null);
+  const [DeckComponent, setDeckComponent] = useState<ComponentType<Record<string, never>> | null>(null);
+  const [riskTiles, setRiskTiles] = useState(RISK_TILES);
 
   // Dynamically import Deck.gl only if installed
   useEffect(() => {
@@ -87,6 +95,17 @@ export default function RiskMap() {
       });
   }, []);
 
+  useEffect(() => {
+    getRiskTiles()
+      .then((apiTiles: RiskTile[]) => {
+        const nextTiles = apiTiles
+          .filter((tile) => typeof tile.lat === "number" && typeof tile.lng === "number")
+          .map((tile) => ({ position: [tile.lng as number, tile.lat as number], score: tileScore(tile) }));
+        if (nextTiles.length > 0) setRiskTiles(nextTiles);
+      })
+      .catch(() => undefined);
+  }, []);
+
   return (
     <div className="relative w-full h-full min-h-[400px] rounded-xl overflow-hidden border border-white/[0.07]">
       {deckLoaded && DeckComponent ? (
@@ -97,7 +116,7 @@ export default function RiskMap() {
           </div>
         </div>
       ) : (
-        <FallbackMap />
+          <FallbackMap tiles={riskTiles} />
       )}
     </div>
   );

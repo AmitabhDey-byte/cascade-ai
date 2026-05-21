@@ -53,7 +53,7 @@ const SEV: Record<string, { color: string; dot: string; badge: string }> = {
 
 export default function AlertTimeline() {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 backdrop-blur-sm">
+    <div className="glass-panel rounded-xl p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-[10px] font-bold tracking-[0.3em] text-white/50">ALERT TIMELINE</h3>
         <span className="text-[8px] tracking-[0.2em] text-white/25">LAST 12H</span>

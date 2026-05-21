@@ -11,6 +11,10 @@ type SpeciesPoint = {
   confidence: number;
 };
 
+type HoverInfo = {
+  object?: SpeciesPoint;
+};
+
 const STATUS_COLOR: Record<string, [number, number, number, number]> = {
   CR: [239, 68,  68,  220],  // red
   EN: [245, 158, 11,  200],  // amber
@@ -31,7 +35,7 @@ export function buildSpeciesScatterLayer(data: SpeciesPoint[]) {
     stroked: true,
     lineWidthMinPixels: 1,
     getLineColor: [255, 255, 255, 40],
-    onHover: (info: any) => {
+    onHover: (info: HoverInfo) => {
       if (info.object) {
         console.log("Species:", info.object.name, "Status:", info.object.status);
       }
