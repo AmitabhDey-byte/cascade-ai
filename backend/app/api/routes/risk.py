@@ -87,6 +87,19 @@ async def run_pipeline():
 
     except FileNotFoundError as e:
         raise HTTPException(status_code=500, detail=str(e))
+    except (ImportError, ModuleNotFoundError) as e:
+        logger.warning("Pipeline dependencies unavailable: %s", e)
+        return {
+            "status": "degraded",
+            "tiles_processed": 0,
+            "high_risk_tiles": [],
+            "n8n_triggered": False,
+        }
     except Exception as e:
         logger.error(f"Pipeline error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "error",
+            "tiles_processed": 0,
+            "high_risk_tiles": [],
+            "n8n_triggered": False,
+        }

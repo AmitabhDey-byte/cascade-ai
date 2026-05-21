@@ -1,7 +1,8 @@
 "use client";
-import { getSpeciesForTile, SpeciesObservation } from "@/lib/api";
+import { getSpeciesForTile } from "@/lib/api";
 import Nav from "@/components/Nav";
 import { useEffect, useState } from "react";
+import type { SpeciesAlert } from "@/types";
 
 const SPECIES = [
   {
@@ -112,23 +113,26 @@ export default function Species() {
   const [species, setSpecies] = useState(SPECIES);
 
   useEffect(() => {
-    Promise.allSettled(TILES_TO_LOAD.map((tileId) => getSpeciesForTile(tileId))).then((results) => {
-      const nextSpecies = results
-        .flatMap((result) => (result.status === "fulfilled" ? result.value.species : []))
-        .map((sp: SpeciesObservation) => ({
-          name: sp.name,
-          latin: sp.latin,
-          status: sp.iucn_status,
-          tile: sp.tile_id,
-          riskScore: sp.flood_risk_score,
-          confidence: sp.bioclip_confidence,
-          observations: 1,
-          lastSeen: "LIVE",
-          threat: sp.primary_threat ?? "Flood displacement",
-          ...speciesStyle(sp.iucn_status),
-        }));
-      if (nextSpecies.length > 0) setSpecies(nextSpecies);
-    });
+    const id = window.setTimeout(() => {
+      Promise.allSettled(TILES_TO_LOAD.map((tileId) => getSpeciesForTile(tileId))).then((results) => {
+        const nextSpecies = results
+          .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+          .map((sp: SpeciesAlert) => ({
+            name: sp.species_name,
+            latin: sp.scientific_name,
+            status: sp.iucn_status,
+            tile: sp.tile_id,
+            riskScore: sp.is_priority ? 0.82 : 0.55,
+            confidence: sp.confidence_score,
+            observations: 1,
+            lastSeen: "LIVE",
+            threat: "Flood displacement",
+            ...speciesStyle(sp.iucn_status),
+          }));
+        if (nextSpecies.length > 0) setSpecies(nextSpecies);
+      });
+    }, 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   const filtered = filter === "ALL" ? species : species.filter((s) => s.status === filter);

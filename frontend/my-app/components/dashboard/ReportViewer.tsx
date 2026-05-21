@@ -33,12 +33,12 @@ export default function ReportViewer() {
     getLatestReport()
       .then((apiReport: ConservationReport) => {
         setReport({
-          id: apiReport.report_id,
-          timestamp: new Date(apiReport.timestamp).toUTCString().slice(5, 22).toUpperCase() + " UTC",
-          severity: apiReport.severity,
-          summary: apiReport.impact_summary || apiReport.flood_risk_summary,
-          actions: apiReport.action_plan,
-          dispatched: apiReport.dispatched_to,
+          id: apiReport.id,
+          timestamp: new Date(apiReport.generated_at).toUTCString().slice(5, 22).toUpperCase() + " UTC",
+          severity: "HIGH",
+          summary: apiReport.estimated_impact || apiReport.risk_summary,
+          actions: apiReport.action_plan.split("\n").filter(Boolean),
+          dispatched: ["API"],
         });
       })
       .catch(() => undefined);

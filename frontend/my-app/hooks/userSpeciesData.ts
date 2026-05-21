@@ -17,24 +17,27 @@ export function useSpeciesData(tileId: string | null): UseSpeciesDataReturn {
 
   useEffect(() => {
     if (!tileId) {
-      setSpecies([]);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    const id = window.setTimeout(() => {
+      setLoading(true);
+      setError(null);
 
-    getSpeciesForTile(tileId)
-      .then((data) => setSpecies(data))
-      .catch(() => setError("Failed to fetch species data."))
-      .finally(() => setLoading(false));
+      getSpeciesForTile(tileId)
+        .then((data) => setSpecies(data))
+        .catch(() => setError("Failed to fetch species data."))
+        .finally(() => setLoading(false));
+    }, 0);
+
+    return () => window.clearTimeout(id);
   }, [tileId]);
 
   return {
-    species,
+    species: tileId ? species : [],
     loading,
     error,
-    priorityCount: species.filter((s) => s.is_priority).length,
+    priorityCount: (tileId ? species : []).filter((s) => s.is_priority).length,
   };
 }
 

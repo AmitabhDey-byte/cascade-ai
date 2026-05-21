@@ -36,9 +36,16 @@ body {
 }
 
 a,
+a *,
 button,
+button *,
 input,
+svg,
+svg *,
+main,
+nav,
 .glass-panel,
+.glass-panel *,
 .glass-control {
   pointer-events: auto;
 }

@@ -1,112 +1,49 @@
 "use client";
-import { getSpeciesForTile, SpeciesObservation } from "@/lib/api";
-import { useEffect, useState } from "react";
-
-const SPECIES = [
-  {
-    name: "Royal Bengal Tiger",
-    latin: "Panthera tigris tigris",
-    status: "EN",
-    statusLabel: "ENDANGERED",
-    tile: "T-023",
-    confidence: 0.97,
-    color: "text-red-400",
-    border: "border-red-400/20",
-    bg: "bg-red-400/5",
-  },
-  {
-    name: "Ganges River Shark",
-    latin: "Glyphis gangeticus",
-    status: "CR",
-    statusLabel: "CRITICALLY ENDANGERED",
-    tile: "T-024",
-    confidence: 0.89,
-    color: "text-red-500",
-    border: "border-red-500/25",
-    bg: "bg-red-500/5",
-  },
-  {
-    name: "Irrawaddy Dolphin",
-    latin: "Orcaella brevirostris",
-    status: "EN",
-    statusLabel: "ENDANGERED",
-    tile: "T-023",
-    confidence: 0.94,
-    color: "text-red-400",
-    border: "border-red-400/20",
-    bg: "bg-red-400/5",
-  },
-  {
-    name: "Fishing Cat",
-    latin: "Prionailurus viverrinus",
-    status: "VU",
-    statusLabel: "VULNERABLE",
-    tile: "T-024",
-    confidence: 0.91,
-    color: "text-amber-400",
-    border: "border-amber-400/20",
-    bg: "bg-amber-400/5",
-  },
-];
-
-const TILES_TO_LOAD = ["T-023", "T-024", "T-033", "T-044"];
-
-function speciesStyle(status: string) {
-  if (status === "CR") return { color: "text-red-500", border: "border-red-500/25", bg: "bg-red-500/5", statusLabel: "CRITICALLY ENDANGERED" };
-  if (status === "EN") return { color: "text-red-400", border: "border-red-400/20", bg: "bg-red-400/5", statusLabel: "ENDANGERED" };
-  if (status === "VU") return { color: "text-amber-400", border: "border-amber-400/20", bg: "bg-amber-400/5", statusLabel: "VULNERABLE" };
-  return { color: "text-emerald-400", border: "border-emerald-400/20", bg: "bg-emerald-400/5", statusLabel: "MONITORED" };
-}
+import { useHighRiskSpecies } from "@/hooks/userSpeciesData";
+import { iucnColor } from "@/lib/api";
 
 export default function SpeciesAtRiskCards() {
-  const [species, setSpecies] = useState(SPECIES);
-
-  useEffect(() => {
-    Promise.allSettled(TILES_TO_LOAD.map((tileId) => getSpeciesForTile(tileId))).then((results) => {
-      const nextSpecies = results
-        .flatMap((result) => (result.status === "fulfilled" ? result.value.species : []))
-        .map((sp: SpeciesObservation) => ({
-          name: sp.name,
-          latin: sp.latin,
-          status: sp.iucn_status,
-          tile: sp.tile_id,
-          confidence: sp.bioclip_confidence,
-          ...speciesStyle(sp.iucn_status),
-        }))
-        .slice(0, 4);
-      if (nextSpecies.length > 0) setSpecies(nextSpecies);
-    });
-  }, []);
+  const { species, loading, priorityCount } = useHighRiskSpecies();
 
   return (
-    <div className="glass-panel rounded-xl p-5 h-full">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[10px] font-bold tracking-[0.3em] text-white/50">SPECIES AT RISK</h3>
-        <span className="text-[8px] tracking-[0.2em] text-white/25">BIOCLIP · IUCN</span>
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-[10px] font-bold tracking-[0.3em] text-white/40">SPECIES AT RISK</h3>
+        {priorityCount > 0 && (
+          <span className="text-[8px] tracking-[0.2em] text-red-400 border border-red-400/20 bg-red-400/10 px-2 py-0.5 rounded-full">
+            {priorityCount} PRIORITY
+          </span>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {species.map((sp) => (
-          <div key={sp.name} className={`rounded-lg border ${sp.border} ${sp.bg} p-3`}>
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <span className={`text-[7px] font-black tracking-[0.2em] ${sp.color}`}>[{sp.status}]</span>
-              <span className="text-[7px] tracking-[0.1em] text-white/25">{sp.tile}</span>
+      {loading ? (
+        <div className="space-y-2">
+          {[1,2,3].map(i => <div key={i} className="h-14 rounded-lg bg-white/[0.03] animate-pulse" />)}
+        </div>
+      ) : species.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-32 text-center">
+          <div className="text-[9px] tracking-[0.2em] text-white/20">NO SPECIES DATA</div>
+          <div className="text-[7px] tracking-[0.15em] text-white/10 mt-1">Run pipeline to detect species</div>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          {species.map((s, i) => (
+            <div key={i} className={`flex items-center justify-between rounded-lg border p-3 ${s.is_priority ? "border-red-400/20 bg-red-400/5" : "border-white/[0.05] bg-black/20"}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  {s.is_priority && <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0 animate-pulse" />}
+                  <div className="text-[9px] font-bold tracking-[0.1em] text-white/80 truncate">{s.species_name}</div>
+                </div>
+                <div className="text-[7px] italic text-white/30 mt-0.5">{s.scientific_name}</div>
+                <div className="text-[7px] text-white/20 mt-0.5">Tile: {s.tile_id} · Confidence: {(s.confidence_score * 100).toFixed(0)}%</div>
+              </div>
+              <div className={`ml-3 shrink-0 text-[7px] font-bold tracking-widest px-2 py-1 rounded border ${iucnColor(s.iucn_status)}`}>
+                {s.iucn_status}
+              </div>
             </div>
-            <div className="text-[9px] font-bold tracking-[0.1em] text-white/80 mb-0.5">{sp.name}</div>
-            <div className="text-[7px] italic tracking-[0.08em] text-white/30 mb-2">{sp.latin}</div>
-            <div className="flex items-center justify-between">
-              <span className={`text-[7px] tracking-[0.1em] ${sp.color} opacity-70`}>{sp.statusLabel}</span>
-              <span className="text-[7px] tracking-[0.1em] text-emerald-400/50">{(sp.confidence * 100).toFixed(0)}%</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3 text-center">
-        <span className="text-[7px] tracking-[0.15em] text-white/20">
-          {species.length} SPECIES CONFIRMED · 6 MONTH OBSERVATION WINDOW
-        </span>
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

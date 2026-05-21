@@ -12,21 +12,102 @@ import type {
 
 // ── Base client ───────────────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080",
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000",
   timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
 
+type BackendRiskTile = Partial<RiskTile> & {
+  score?: number;
+  lat?: number;
+  lng?: number;
+  timestamp?: string;
+};
+
+type BackendSpeciesTileResponse = {
+  tile_id: string;
+  species: Array<{
+    name: string;
+    latin: string;
+    iucn_status: SpeciesAlert["iucn_status"];
+    tile_id: string;
+    observed_at?: string;
+    bioclip_confidence: number;
+    photo_url?: string | null;
+  }>;
+};
+
+type BackendReport = {
+  report_id: string;
+  timestamp: string;
+  trigger: string;
+  severity: string;
+  tiles_affected: string[];
+  species_affected: string[];
+  flood_risk_summary: string;
+  impact_summary: string;
+  action_plan: string[];
+  dispatched_to: string[];
+  model_used: string;
+};
+
+function normalizeRiskTile(tile: BackendRiskTile): RiskTile {
+  const score = tile.risk_score ?? tile.score ?? tile.flood_probability_24h ?? 0;
+  return {
+    tile_id: tile.tile_id ?? "unknown",
+    lat_min: tile.lat_min ?? tile.lat ?? 0,
+    lat_max: tile.lat_max ?? tile.lat ?? 0,
+    lon_min: tile.lon_min ?? tile.lng ?? 0,
+    lon_max: tile.lon_max ?? tile.lng ?? 0,
+    risk_score: score,
+    flood_probability_24h: tile.flood_probability_24h ?? score,
+    flood_probability_48h: tile.flood_probability_48h ?? score,
+    flood_probability_72h: tile.flood_probability_72h ?? score,
+    is_high_risk: tile.is_high_risk ?? score >= 0.7,
+    updated_at: tile.updated_at ?? tile.timestamp ?? new Date().toISOString(),
+  };
+}
+
+function normalizeSpeciesAlert(species: BackendSpeciesTileResponse["species"][number]): SpeciesAlert {
+  const priority = species.iucn_status === "CR" || species.iucn_status === "EN";
+  return {
+    tile_id: species.tile_id,
+    species_name: species.name,
+    scientific_name: species.latin,
+    iucn_status: species.iucn_status,
+    confidence_score: species.bioclip_confidence,
+    observation_date: species.observed_at ?? null,
+    photo_url: species.photo_url ?? null,
+    is_priority: priority,
+    created_at: species.observed_at ?? new Date().toISOString(),
+  };
+}
+
+function normalizeReport(report: BackendReport): ConservationReport {
+  return {
+    id: report.report_id,
+    tile_ids: report.tiles_affected,
+    risk_summary: report.flood_risk_summary || report.trigger,
+    species_affected: report.species_affected,
+    priority_species: report.species_affected.join(", "),
+    action_plan: report.action_plan.join("\n"),
+    ranger_instructions: report.action_plan.join("\n"),
+    estimated_impact: report.impact_summary,
+    generated_at: report.timestamp,
+    flood_horizon_hours: 72,
+  };
+}
+
 
 // ── Risk ──────────────────────────────────────────────────────────────────────
 export async function getRiskTiles(): Promise<RiskTile[]> {
-  const { data } = await api.get<RiskTile[]>("/risk/tiles");
-  return data;
+  const { data } = await api.get<BackendRiskTile[]>("/risk/tiles");
+  return data.map(normalizeRiskTile);
 }
 
 export async function getRiskTile(tileId: string): Promise<RiskTile> {
-  const { data } = await api.get<RiskTile>(`/risk/tiles/${tileId}`);
-  return data;
+  const { data } = await api.get<BackendRiskTile>(`/risk/tiles/${tileId}`);
+  return normalizeRiskTile(data);
 }
 
 export async function runPipeline(): Promise<PipelineResponse> {
@@ -37,30 +118,32 @@ export async function runPipeline(): Promise<PipelineResponse> {
 
 // ── Species ───────────────────────────────────────────────────────────────────
 export async function getSpeciesForTile(tileId: string): Promise<SpeciesAlert[]> {
-  const { data } = await api.get<SpeciesAlert[]>(`/species/tile/${tileId}`);
-  return data;
+  const { data } = await api.get<BackendSpeciesTileResponse>(`/species/tile/${tileId}`);
+  return data.species.map(normalizeSpeciesAlert);
 }
 
 export async function getHighRiskSpecies(): Promise<SpeciesAlert[]> {
-  const { data } = await api.get<SpeciesAlert[]>("/species/high-risk");
-  return data;
+  const tiles = await getRiskTiles();
+  const highRiskTiles = tiles.filter((tile) => tile.is_high_risk).slice(0, 6);
+  const settled = await Promise.allSettled(highRiskTiles.map((tile) => getSpeciesForTile(tile.tile_id)));
+  return settled.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
 }
 
 
 // ── Report ────────────────────────────────────────────────────────────────────
 export async function getLatestReport(): Promise<ConservationReport> {
-  const { data } = await api.get<ConservationReport>("/report/latest");
-  return data;
+  const { data } = await api.get<BackendReport>("/report/latest");
+  return normalizeReport(data);
 }
 
 export async function generateReport(
   tileIds: string[]
 ): Promise<ConservationReport> {
-  const { data } = await api.post<ConservationReport>("/report/generate", {
-    tile_ids: tileIds,
-    force:    true,
+  const { data } = await api.post<{ report: BackendReport }>("/report/generate", {
+    run_id: tileIds.join("-") || "manual",
+    force: true,
   });
-  return data;
+  return normalizeReport(data.report);
 }
 
 

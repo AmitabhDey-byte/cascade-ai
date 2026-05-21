@@ -24,7 +24,7 @@ export function useRiskData(pollIntervalMs = 30000): UseRiskDataReturn {
       setTiles(data);
       setLastUpdated(new Date());
       setError(null);
-    } catch (e) {
+    } catch {
       setError("Failed to fetch risk tiles. Is the backend running?");
     } finally {
       setLoading(false);
@@ -33,7 +33,8 @@ export function useRiskData(pollIntervalMs = 30000): UseRiskDataReturn {
 
   // Initial fetch
   useEffect(() => {
-    fetchTiles();
+    const id = window.setTimeout(() => void fetchTiles(), 0);
+    return () => window.clearTimeout(id);
   }, [fetchTiles]);
 
   // Poll every 30s
@@ -48,7 +49,7 @@ export function useRiskData(pollIntervalMs = 30000): UseRiskDataReturn {
       const result = await runPipeline();
       await fetchTiles(); // refresh after pipeline runs
       return result;
-    } catch (e) {
+    } catch {
       setError("Pipeline trigger failed.");
       return null;
     } finally {

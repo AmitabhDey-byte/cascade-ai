@@ -31,7 +31,8 @@ export function useReport(): UseReportReturn {
   }, []);
 
   useEffect(() => {
-    fetchLatest();
+    const id = window.setTimeout(() => void fetchLatest(), 0);
+    return () => window.clearTimeout(id);
   }, [fetchLatest]);
 
   const generate = useCallback(async (tileIds: string[]) => {

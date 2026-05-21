@@ -80,15 +80,15 @@ export default function Reports() {
     getLatestReport()
       .then((apiReport: ConservationReport) => {
         const latest = {
-          id: apiReport.report_id,
-          timestamp: new Date(apiReport.timestamp).toUTCString().slice(5, 22).toUpperCase() + " UTC",
-          trigger: apiReport.trigger,
-          severity: apiReport.severity,
-          tilesAffected: apiReport.tiles_affected.length,
+          id: apiReport.id,
+          timestamp: new Date(apiReport.generated_at).toUTCString().slice(5, 22).toUpperCase() + " UTC",
+          trigger: apiReport.risk_summary,
+          severity: "HIGH",
+          tilesAffected: apiReport.tile_ids.length,
           speciesAffected: apiReport.species_affected.length,
-          summary: apiReport.impact_summary || apiReport.flood_risk_summary,
-          actions: apiReport.action_plan,
-          dispatched: apiReport.dispatched_to,
+          summary: apiReport.estimated_impact || apiReport.risk_summary,
+          actions: apiReport.action_plan.split("\n").filter(Boolean),
+          dispatched: ["API"],
         };
         setReports([latest, ...REPORTS.filter((report) => report.id !== latest.id)]);
         setActiveReport(latest);
