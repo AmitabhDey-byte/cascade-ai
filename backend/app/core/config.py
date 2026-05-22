@@ -2,10 +2,6 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # MongoDB
-    MONGO_URI:              str   = "mongodb://localhost:27017"
-    MONGO_DB_NAME:          str   = "cascadeai"
-
     # OpenAI
     OPENAI_API_KEY:         str = ""
     OPENAI_MODEL:           str = "gpt-5.4-mini"

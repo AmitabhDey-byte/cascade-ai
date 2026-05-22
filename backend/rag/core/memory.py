@@ -1,55 +1,16 @@
-from pymongo import MongoClient
+_messages: list[dict[str, str]] = []
 
-# =========================
-# MONGO
-# =========================
 
-client = MongoClient(
-    "mongodb://localhost:27017"
-)
-
-db = client["cascadeai"]
-
-memory_collection = db["chat_memory"]
-
-# =========================
-# SAVE MESSAGE
-# =========================
-
-def save_message(
-    session_id,
-    role,
-    content
-):
-
-    memory_collection.insert_one({
-
-        "session_id": session_id,
-
-        "role": role,
-
-        "content": content
-    })
-
-# =========================
-# GET MEMORY
-# =========================
-
-def get_recent_memory(
-    session_id,
-    limit=5
-):
-
-    messages = list(
-
-        memory_collection.find({
-
-            "session_id": session_id
-
-        }).sort("_id", -1).limit(limit)
-
+def save_message(session_id, role, content):
+    _messages.append(
+        {
+            "session_id": session_id,
+            "role": role,
+            "content": content,
+        }
     )
 
-    messages.reverse()
 
-    return messages
+def get_recent_memory(session_id, limit=5):
+    messages = [message for message in _messages if message["session_id"] == session_id]
+    return messages[-limit:]

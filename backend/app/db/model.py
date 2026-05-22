@@ -1,5 +1,4 @@
-from beanie import Document, Indexed
-from pydantic import Field
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
@@ -14,8 +13,8 @@ class IUCNStatus(str, Enum):
     DD = "DD"
 
 
-class RiskTile(Document):
-    tile_id: Indexed(str)  # type: ignore
+class RiskTile(BaseModel):
+    tile_id: str
     run_id: str = "manual"
     lat: float = 0.0
     lng: float = 0.0
@@ -35,17 +34,13 @@ class RiskTile(Document):
     elevation_m: Optional[float] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
-    class Settings:
-        name = "risk_tiles"
-        indexes = [["tile_id", "timestamp"], ["run_id", "timestamp"]]
 
-
-class SpeciesAlert(Document):
+class SpeciesAlert(BaseModel):
     gbif_id: Optional[str] = None
     name: str
     latin: str
     iucn_status: IUCNStatus
-    tile_id: Indexed(str)  # type: ignore
+    tile_id: str
     lat: float
     lng: float
     observed_at: datetime
@@ -55,13 +50,9 @@ class SpeciesAlert(Document):
     primary_threat: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Settings:
-        name = "species_alerts"
-        indexes = [["tile_id", "observed_at"]]
 
-
-class ConservationReport(Document):
-    report_id: Indexed(str, unique=True)  # type: ignore
+class ConservationReport(BaseModel):
+    report_id: str
     run_id: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     trigger: str
@@ -74,5 +65,3 @@ class ConservationReport(Document):
     dispatched_to: List[str] = Field(default_factory=list)
     model_used: str = "gpt-5.4-mini"
 
-    class Settings:
-        name = "conservation_reports"

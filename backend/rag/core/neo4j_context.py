@@ -1,58 +1,35 @@
-from neo4j import GraphDatabase
+def get_species_relationships(species_name):
+    try:
+        from neo4j import GraphDatabase
+    except ImportError:
+        return []
 
-# =========================
-# CONNECTION
-# =========================
+    uri = "bolt://localhost:7687"
+    username = "neo4j"
+    password = "password"
 
-URI = "bolt://localhost:7687"
-
-USERNAME = "neo4j"
-
-PASSWORD = "password"
-
-driver = GraphDatabase.driver(
-    URI,
-    auth=(USERNAME, PASSWORD)
-)
-
-# =========================
-# QUERY
-# =========================
-
-def get_species_relationships(
-    species_name
-):
-
-    query = """
-
-    MATCH (s:Species)-[r]->(n)
-
-    WHERE s.name = $species_name
-
-    RETURN type(r) AS relationship,
-           n.name AS target
-    """
-
-    with driver.session() as session:
-
-        result = session.run(
-
-            query,
-
-            species_name=species_name
-        )
-
-        data = []
-
-        for record in result:
-
-            data.append({
-
-                "relationship":
-                record["relationship"],
-
-                "target":
-                record["target"]
-            })
-
-        return data
+    try:
+        driver = GraphDatabase.driver(uri, auth=(username, password))
+        with driver.session() as session:
+            result = session.run(
+                """
+                MATCH (s:Species)-[r]->(n)
+                WHERE s.name = $species_name
+                RETURN type(r) AS relationship, n.name AS target
+                """,
+                species_name=species_name,
+            )
+            return [
+                {
+                    "relationship": record["relationship"],
+                    "target": record["target"],
+                }
+                for record in result
+            ]
+    except Exception:
+        return []
+    finally:
+        try:
+            driver.close()
+        except Exception:
+            pass

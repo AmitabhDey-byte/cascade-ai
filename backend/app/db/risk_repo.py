@@ -15,16 +15,6 @@ def _serialize_tile(tile: RiskTile) -> dict[str, Any]:
 
 
 async def get_all_tiles() -> list[dict[str, Any]]:
-    try:
-        tiles = await RiskTile.find_all().sort(-RiskTile.timestamp).to_list()
-        latest_by_tile: dict[str, RiskTile] = {}
-        for tile in tiles:
-            latest_by_tile.setdefault(tile.tile_id, tile)
-        if latest_by_tile:
-            return [_serialize_tile(tile) for tile in latest_by_tile.values()]
-    except Exception:
-        pass
-
     if _memory_tiles:
         return list(_memory_tiles.values())
 
@@ -32,13 +22,6 @@ async def get_all_tiles() -> list[dict[str, Any]]:
 
 
 async def get_tile_by_id(tile_id: str) -> dict[str, Any] | None:
-    try:
-        tile = await RiskTile.find(RiskTile.tile_id == tile_id).sort(-RiskTile.timestamp).first_or_none()
-        if tile:
-            return _serialize_tile(tile)
-    except Exception:
-        pass
-
     if tile_id in _memory_tiles:
         return _memory_tiles[tile_id]
 
@@ -48,23 +31,20 @@ async def get_tile_by_id(tile_id: str) -> dict[str, Any] | None:
 async def upsert_risk_tile(payload: dict[str, Any]) -> None:
     payload = _normalize_payload(payload)
     tile_id = payload["tile_id"]
-
-    try:
-        existing = await RiskTile.find(RiskTile.tile_id == tile_id).sort(-RiskTile.timestamp).first_or_none()
-        if existing:
-            for key, value in payload.items():
-                if hasattr(existing, key):
-                    setattr(existing, key, value)
-            await existing.save()
-            _memory_tiles[tile_id] = _json_ready(payload)
-            return
-
-        await RiskTile(**payload).insert()
-    except Exception:
-        _memory_tiles[tile_id] = _json_ready(payload)
-        return
-
     _memory_tiles[tile_id] = _json_ready(payload)
+
+async def get_tile_models(tile_ids: list[str] | None = None, run_id: str | None = None) -> list[RiskTile]:
+    tiles = await get_all_tiles()
+    if tile_ids:
+        selected = set(tile_ids)
+        tiles = [tile for tile in tiles if tile["tile_id"] in selected]
+    if run_id:
+        tiles = [tile for tile in tiles if tile.get("run_id") == run_id]
+
+    latest_by_tile: dict[str, dict[str, Any]] = {}
+    for tile in sorted(tiles, key=lambda item: item.get("timestamp", ""), reverse=True):
+        latest_by_tile.setdefault(tile["tile_id"], tile)
+    return [RiskTile(**tile) for tile in latest_by_tile.values()]
 
 
 def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:

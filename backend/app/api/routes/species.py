@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException
 
-from app.db.models import RiskTile, SpeciesAlert
+from app.db import risk_repo, species_repo
+from app.db.models import SpeciesAlert
 from app.schemas.species import IUCNStatus, SpeciesObservation, SpeciesTileResponse
 
 router = APIRouter(prefix="/species", tags=["species"])
@@ -12,19 +13,13 @@ router = APIRouter(prefix="/species", tags=["species"])
 async def get_high_risk_species(limit: int = 50):
     """Return species observations overlapping the latest high-risk forecast."""
     try:
-        high_risk_tiles = await RiskTile.find({"is_high_risk": True}).sort(-RiskTile.timestamp).to_list()
-        latest_ids = list({tile.tile_id for tile in high_risk_tiles})
+        tiles = await risk_repo.get_tile_models()
+        latest_ids = [tile.tile_id for tile in tiles if tile.is_high_risk]
         if not latest_ids:
             return []
-
-        alerts = (
-            await SpeciesAlert.find({"tile_id": {"$in": latest_ids}})
-            .sort(-SpeciesAlert.observed_at)
-            .limit(limit)
-            .to_list()
-        )
+        alerts = await species_repo.get_high_risk_species(latest_ids, limit)
     except Exception:
-        raise HTTPException(status_code=503, detail="Species database unavailable.")
+        raise HTTPException(status_code=503, detail="Species data unavailable.")
 
     return [_serialize_species(alert) for alert in alerts]
 
@@ -35,17 +30,10 @@ async def get_species_for_tile(tile_id: str, days: int = 180):
     since = datetime.utcnow() - timedelta(days=days)
 
     try:
-        alerts = (
-            await SpeciesAlert.find(
-                SpeciesAlert.tile_id == tile_id,
-                SpeciesAlert.observed_at >= since,
-            )
-            .sort(-SpeciesAlert.bioclip_confidence)
-            .to_list()
-        )
-        risk_tile = await RiskTile.find(RiskTile.tile_id == tile_id).sort(-RiskTile.timestamp).first_or_none()
+        alerts = await species_repo.get_species_for_tile(tile_id, since)
+        risk_tile = next(iter(await risk_repo.get_tile_models(tile_ids=[tile_id])), None)
     except Exception:
-        raise HTTPException(status_code=503, detail="Species database unavailable.")
+        raise HTTPException(status_code=503, detail="Species data unavailable.")
 
     species_list = [_serialize_species(alert) for alert in alerts]
     critical_statuses = {IUCNStatus.CR, IUCNStatus.EN}
