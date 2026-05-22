@@ -123,31 +123,23 @@ export async function getSpeciesForTile(tileId: string): Promise<SpeciesAlert[]>
 }
 
 export async function getHighRiskSpecies(): Promise<SpeciesAlert[]> {
-  try {
-    // Try to get species verified with BioCLIP first
-    const { data } = await api.get<{
-      species_found: any[];
-      total: number;
-    }>("/species/high-risk-with-bioclip");
-    
-    return data.species_found.map((s: any) => ({
+  // Backend exposes: GET /species/high-risk
+  const { data } = await api.get<Array<any>>("/species/high-risk");
+  // Backend returns SpeciesObservation objects.
+  return data.map((s) => {
+    const iucn = (s.iucn_status ?? s.iucn)?.toString() as SpeciesAlert["iucn_status"];
+    return {
       tile_id: s.tile_id,
       species_name: s.name,
       scientific_name: s.latin,
-      iucn_status: s.iucn_status,
+      iucn_status: iucn,
       confidence_score: s.bioclip_confidence,
       observation_date: s.observed_at ? new Date(s.observed_at).toISOString() : null,
-      photo_url: s.photo_url || null,
-      is_priority: s.iucn_status === "CR" || s.iucn_status === "EN",
-      created_at: s.observed_at || new Date().toISOString(),
-    }));
-  } catch (error) {
-    // Fallback to the old endpoint if bioclip endpoint fails
-    const tiles = await getRiskTiles();
-    const highRiskTiles = tiles.filter((tile) => tile.is_high_risk).slice(0, 6);
-    const settled = await Promise.allSettled(highRiskTiles.map((tile) => getSpeciesForTile(tile.tile_id)));
-    return settled.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
-  }
+      photo_url: s.photo_url ?? null,
+      is_priority: iucn === "CR" || iucn === "EN",
+      created_at: s.observed_at ? new Date(s.observed_at).toISOString() : new Date().toISOString(),
+    };
+  });
 }
 
 
