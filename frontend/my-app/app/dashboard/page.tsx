@@ -5,13 +5,17 @@ import SpeciesAtRiskCards from "@/components/dashboard/SpeciesAtRiskCards";
 import ReportViewer from "@/components/dashboard/ReportViewer";
 import AlertTimeline from "@/components/dashboard/AlertTimeline";
 import RiskMap from "@/components/maps/RiskMap";
+import AIChat from "@/components/dashboard/AIChat";
 import { useEffect, useState } from "react";
 import { useRiskData } from "@/hooks/userRiskData";
+import { useDashboardSpecies } from "@/hooks/useDashboardSpecies";
 
 export default function Dashboard() {
   const [time, setTime] = useState("");
   const [nowMs, setNowMs] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
   const { tiles, highRiskCount, lastUpdated } = useRiskData(60000);
+  const { species } = useDashboardSpecies(60000);
 
   const avgRisk = tiles.length ? tiles.reduce((sum, tile) => sum + tile.risk_score, 0) / tiles.length : 0;
   const nextCycle = lastUpdated
@@ -101,6 +105,20 @@ export default function Dashboard() {
 
         {/* Alert timeline full width */}
         <AlertTimeline />
+
+      {/* AI Chat Panel - Fixed Position */}
+      <div className="fixed bottom-6 right-6 w-96 max-h-[500px] z-50">
+        {chatOpen ? (
+          <AIChat tiles={tiles} species={species} onClose={() => setChatOpen(false)} />
+        ) : (
+          <button
+            onClick={() => setChatOpen(true)}
+            className="w-full px-4 py-3 bg-gradient-to-r from-emerald-400/20 to-emerald-500/20 border border-emerald-400/40 rounded-xl hover:border-emerald-400/60 hover:from-emerald-400/30 hover:to-emerald-500/30 transition-all shadow-lg hover:shadow-emerald-400/20 text-emerald-300 font-bold tracking-widest text-sm"
+          >
+            💬 OPEN AI ASSISTANT
+          </button>
+        )}
+      </div>
 
       </main>
     </div>
