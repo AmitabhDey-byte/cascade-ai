@@ -53,7 +53,7 @@ export default function StatusBar({
       {highRiskCount > 0 && (
         <div className="flex items-center gap-2 text-red-400">
           <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-          {highRiskCount} HIGH RISK {highRiskCount === 1 ? "TILE" : "TILES"}
+          {highRiskCount} HIGH RISK {highRiskCount === 1 ? "AREA" : "AREAS"}
         </div>
       )}
 

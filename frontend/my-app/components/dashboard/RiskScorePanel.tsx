@@ -37,18 +37,18 @@ export default function RiskScorePanel() {
         <div className="rounded-lg border border-red-400/20 bg-red-400/5 p-3">
           <div className="text-[7px] tracking-[0.2em] text-white/30 mb-1">HIGH RISK</div>
           <div className="text-xl font-black text-red-400">{highRiskCount}</div>
-          <div className="text-[7px] text-white/20">TILES</div>
+          <div className="text-[7px] text-white/20">AREAS</div>
         </div>
         <div className="rounded-lg border border-white/[0.06] bg-black/20 p-3">
           <div className="text-[7px] tracking-[0.2em] text-white/30 mb-1">MONITORED</div>
           <div className="text-xl font-black text-white">{tiles.length}</div>
-          <div className="text-[7px] text-white/20">TILES</div>
+          <div className="text-[7px] text-white/20">AREAS</div>
         </div>
       </div>
 
       {highest && highest.risk_score > 0 && (
         <div className="rounded-lg border border-white/[0.06] bg-black/20 p-3 space-y-2">
-          <div className="text-[7px] tracking-[0.2em] text-white/30">HIGHEST RISK TILE</div>
+          <div className="text-[7px] tracking-[0.2em] text-white/30">HIGHEST RISK AREA</div>
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-mono text-white/60">{highest.tile_id}</span>
             <span className="text-[9px] font-black" style={{ color: highest.risk_score >= 0.65 ? "#f87171" : "#34d399" }}>

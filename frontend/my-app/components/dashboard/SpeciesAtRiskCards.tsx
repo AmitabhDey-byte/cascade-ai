@@ -35,7 +35,7 @@ export default function SpeciesAtRiskCards() {
                   <div className="text-[9px] font-bold tracking-[0.1em] text-white/80 truncate">{s.species_name}</div>
                 </div>
                 <div className="text-[7px] italic text-white/30 mt-0.5">{s.scientific_name}</div>
-                <div className="text-[7px] text-white/20 mt-0.5">Tile: {s.tile_id} · Confidence: {(s.confidence_score * 100).toFixed(0)}%</div>
+                <div className="text-[7px] text-white/20 mt-0.5">Area: {s.tile_id} · Confidence: {(s.confidence_score * 100).toFixed(0)}%</div>
               </div>
               <div className={`ml-3 shrink-0 text-[7px] font-bold tracking-widest px-2 py-1 rounded border ${iucnColor(s.iucn_status)}`}>
                 {s.iucn_status}

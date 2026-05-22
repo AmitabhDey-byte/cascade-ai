@@ -140,7 +140,7 @@ export async function generateReport(
   tileIds: string[]
 ): Promise<ConservationReport> {
   const { data } = await api.post<{ report: BackendReport }>("/report/generate", {
-    run_id: tileIds.join("-") || "manual",
+    tile_ids: tileIds,
     force: true,
   });
   return normalizeReport(data.report);

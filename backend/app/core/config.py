@@ -6,14 +6,16 @@ class Settings(BaseSettings):
     MONGO_URI:              str   = "mongodb://localhost:27017"
     MONGO_DB_NAME:          str   = "cascadeai"
 
-    # Anthropic
-    ANTHROPIC_API_KEY:      str = ""
+    # OpenAI
+    OPENAI_API_KEY:         str = ""
+    OPENAI_MODEL:           str = "gpt-5.4-mini"
 
     # NASA EarthData
     NASA_EARTHDATA_TOKEN:   str = ""
 
     # n8n
     N8N_WEBHOOK_URL:        str   = "http://localhost:5678/webhook/cascade-alert"
+    N8N_REPORT_WEBHOOK_URL: str   = ""
 
     # Stellar
     STELLAR_SECRET_KEY:     str   = ""

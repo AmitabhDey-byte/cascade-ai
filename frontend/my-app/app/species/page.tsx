@@ -210,7 +210,7 @@ export default function Species() {
                     </div>
                     <div className="text-[8px] tracking-[0.1em] text-white/30 italic mb-3">{sp.latin}</div>
                     <div className="flex flex-wrap gap-3">
-                      <span className="text-[8px] tracking-[0.15em] text-white/40">TILE {sp.tile}</span>
+                      <span className="text-[8px] tracking-[0.15em] text-white/40">AREA {sp.tile}</span>
                       <span className="text-[8px] tracking-[0.15em] text-white/40">{sp.observations} OBS.</span>
                       <span className="text-[8px] tracking-[0.15em] text-white/40">LAST: {sp.lastSeen}</span>
                     </div>
@@ -257,7 +257,7 @@ export default function Species() {
                 <div className="space-y-3 mb-5">
                   {[
                     { label: "PRIMARY THREAT", value: selected.threat },
-                    { label: "TILE", value: selected.tile },
+                    { label: "AREA", value: selected.tile },
                     { label: "OBSERVATIONS", value: `${selected.observations} (6 MO)` },
                     { label: "BIOCLIP CONFIDENCE", value: `${(selected.confidence * 100).toFixed(0)}%` },
                     { label: "FLOOD RISK SCORE", value: selected.riskScore.toFixed(2) },
@@ -273,7 +273,7 @@ export default function Species() {
                 <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-4">
                   <div className="text-[7px] tracking-[0.25em] text-emerald-400/60 mb-2">RANGER ACTION</div>
                   <p className="text-[8px] leading-relaxed tracking-[0.1em] text-white/60">
-                    Deploy monitoring team to {selected.tile}. Establish temporary shelter and evacuation corridors. Report sightings via Telegram within 30 min.
+                    Deploy monitoring team to {selected.tile}. Establish temporary shelter and evacuation corridors. Report sightings via WhatsApp within 30 min.
                   </p>
                 </div>
               </div>

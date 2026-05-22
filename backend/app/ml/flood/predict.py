@@ -3,7 +3,7 @@ import logging
 import joblib
 import numpy as np
 from typing import Dict, List
-from app.ml.flood.features import build_feature_tensor
+from app.ml.flood.feature import build_feature_tensor
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

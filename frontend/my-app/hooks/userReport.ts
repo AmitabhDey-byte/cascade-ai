@@ -43,7 +43,7 @@ export function useReport(): UseReportReturn {
       const data = await generateReport(tileIds);
       setReport(data);
     } catch {
-      setError("Failed to generate report. Check Claude API key.");
+      setError("Failed to generate report. Check OpenAI API key and backend logs.");
     } finally {
       setGenerating(false);
     }

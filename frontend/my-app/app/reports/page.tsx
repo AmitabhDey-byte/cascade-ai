@@ -7,20 +7,20 @@ const REPORTS = [
   {
     id: "RPT-2847",
     timestamp: "21 MAY 2026 · 06:42 UTC",
-    trigger: "FLOOD RISK > 0.70 · 4 TILES",
+    trigger: "FLOOD RISK > 0.70 · 4 AREAS",
     severity: "HIGH",
     tilesAffected: 4,
     speciesAffected: 6,
     summary:
-      "Cycle 48 analysis flags critical flood risk across tiles T-23, T-24, T-33, T-44 following 187mm precipitation forecast for next 72 hours. Royal Bengal Tiger and Ganges River Shark face highest displacement risk. Immediate ranger deployment recommended.",
+      "Cycle 48 analysis flags critical flood risk across monitored areas T-23, T-24, T-33, T-44 following 187mm precipitation forecast for next 72 hours. Royal Bengal Tiger and Ganges River Shark face highest displacement risk. Immediate ranger deployment recommended.",
     actions: [
       "Deploy ranger team to T-23 and T-24 by 08:00 UTC",
       "Set up temporary monitoring stations at grid perimeter",
       "Notify IUCN South Asia desk via secure channel",
-      "Activate Twilio SMS for all on-call rangers",
+      "Activate WhatsApp dispatch for all on-call rangers",
       "Upload updated risk map to command portal",
     ],
-    dispatched: ["TELEGRAM", "SMS", "EMAIL", "GSHEET"],
+    dispatched: ["WHATSAPP", "EMAIL", "GSHEET"],
   },
   {
     id: "RPT-2846",
@@ -45,7 +45,7 @@ const REPORTS = [
     tilesAffected: 7,
     speciesAffected: 11,
     summary:
-      "IMD cyclone precursor signal received. LSTM model rerun on fresh SMAP data — 7 tiles now above 0.70 threshold. Estimated landfall T+54H. All species in affected zones face severe displacement. Emergency protocol initiated.",
+      "IMD cyclone precursor signal received. Local model rerun on fresh SMAP data; 7 monitored areas now sit above the 0.70 threshold. Estimated landfall T+54H. All species in affected zones face severe displacement. Emergency protocol initiated.",
     actions: [
       "Emergency protocol ALPHA activated",
       "All field teams recalled to base",
@@ -54,7 +54,7 @@ const REPORTS = [
       "Satellite phone check-in every 4 hours",
       "Pre-position evacuation boats at T-23 jetty",
     ],
-    dispatched: ["TELEGRAM", "SMS", "EMAIL", "GSHEET", "TWILIO"],
+    dispatched: ["WHATSAPP", "EMAIL", "GSHEET"],
   },
 ];
 
@@ -65,7 +65,7 @@ const SEVERITY_STYLES: Record<string, { label: string; color: string; border: st
 };
 
 const DISPATCH_COLORS: Record<string, string> = {
-  TELEGRAM: "bg-blue-400/10 text-blue-400 border-blue-400/20",
+  WHATSAPP: "bg-emerald-400/10 text-emerald-300 border-emerald-400/20",
   SMS: "bg-violet-400/10 text-violet-400 border-violet-400/20",
   EMAIL: "bg-white/10 text-white/60 border-white/10",
   GSHEET: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
@@ -110,7 +110,7 @@ export default function Reports() {
       <main className="relative mx-auto max-w-7xl px-6 py-8">
         <div className="mb-8">
           <h2 className="text-lg font-black tracking-[0.2em]">IMPACT REPORTS</h2>
-          <p className="mt-1 text-[9px] tracking-[0.25em] text-white/30">CLAUDE-GENERATED · RAG SYNTHESIS · N8N DISPATCH</p>
+          <p className="mt-1 text-[9px] tracking-[0.25em] text-white/30">OPENAI-GENERATED · RAG SYNTHESIS · N8N DISPATCH</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -134,7 +134,7 @@ export default function Reports() {
                   <div className="text-[7px] tracking-[0.1em] text-white/25 mb-1">{r.timestamp}</div>
                   <div className="text-[8px] tracking-[0.1em] text-white/50 leading-relaxed">{r.trigger}</div>
                   <div className="mt-3 flex gap-3">
-                    <span className="text-[7px] tracking-[0.1em] text-white/30">{r.tilesAffected} TILES</span>
+                    <span className="text-[7px] tracking-[0.1em] text-white/30">{r.tilesAffected} AREAS</span>
                     <span className="text-[7px] tracking-[0.1em] text-white/30">{r.speciesAffected} SPECIES</span>
                   </div>
                 </div>
@@ -180,7 +180,7 @@ export default function Reports() {
                   <div className="mb-5">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <div className="text-[8px] font-bold tracking-[0.25em] text-white/40">CLAUDE IMPACT SUMMARY</div>
+                      <div className="text-[8px] font-bold tracking-[0.25em] text-white/40">OPENAI IMPACT SUMMARY</div>
                     </div>
                     <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.03] p-5">
                       <p className="text-[10px] leading-relaxed tracking-[0.1em] text-white/70">
@@ -209,7 +209,7 @@ export default function Reports() {
 
                   <div className="mt-6 flex items-center gap-3 text-[7px] tracking-[0.15em] text-white/20">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/40" />
-                    GENERATED BY CASCADE AI · CLAUDE SONNET · IUCN RED LIST CONTEXT RETRIEVED VIA RAG
+                    GENERATED BY CASCADE AI · OPENAI · IUCN RED LIST CONTEXT RETRIEVED VIA RAG
                   </div>
                 </>
               );

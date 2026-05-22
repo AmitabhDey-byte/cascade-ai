@@ -3,7 +3,6 @@ import tempfile
 import logging
 import numpy as np
 import httpx
-import h5py
 from datetime import datetime, timedelta
 from typing import Dict, List
 
@@ -51,6 +50,9 @@ async def _fetch_smap() -> Dict[str, float]:
     from app.core.config import settings
 
     token = settings.NASA_EARTHDATA_TOKEN
+    if not token:
+        raise RuntimeError("NASA_EARTHDATA_TOKEN is not configured.")
+
     granule_url = await _find_latest_granule(token)
     hdf5_path = await _download_granule(granule_url, token)
     try:
@@ -123,6 +125,8 @@ def _extract_per_tile(hdf5_path: str) -> Dict[str, float]:
         /Soil_Moisture_Retrieval_Data_AM/longitude
     """
     result = {}
+
+    import h5py
 
     with h5py.File(hdf5_path, "r") as f:
         group    = f["Soil_Moisture_Retrieval_Data_AM"]

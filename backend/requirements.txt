@@ -3,3 +3,9 @@ uvicorn[standard]
 motor
 beanie
 pydantic-settings
+httpx
+openai
+numpy
+joblib
+scikit-learn
+h5py

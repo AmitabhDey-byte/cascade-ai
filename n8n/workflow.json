@@ -37,7 +37,7 @@
     },
     {
       "id": "node-generate-report",
-      "name": "Generate Claude Report",
+      "name": "Generate OpenAI Report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [640, 200],
@@ -55,12 +55,12 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"tile_ids\": {{ JSON.stringify($json.high_risk_tiles) }},\n  \"force\": true\n}",
+        "jsonBody": "={\n  \"run_id\": \"{{ $json.run_id }}\",\n  \"tile_ids\": {{ JSON.stringify($json.high_risk_tiles) }},\n  \"force\": true\n}",
         "options": {
           "timeout": 30000
         }
       },
-      "notes": "Calls FastAPI /report/generate — this triggers RAG + Claude internally and returns the full conservation report"
+      "notes": "Calls FastAPI /report/generate — this triggers RAG + OpenAI internally and returns the full conservation report"
     },
     {
       "id": "node-get-species",
@@ -89,13 +89,13 @@
             {
               "id": "sms-body",
               "name": "sms_body",
-              "value": "=CASCADEAI FLOOD ALERT\n\nHigh Risk Tiles: {{ $('Flood Risk Webhook').item.json.high_risk_tiles.join(', ') }}\n\nSpecies at Risk: {{ $('Generate Claude Report').item.json.species_affected.join(', ') }}\n\nRisk Summary: {{ $('Generate Claude Report').item.json.risk_summary }}\n\nImmediate Action: {{ $('Generate Claude Report').item.json.ranger_instructions }}\n\nTime: {{ $('Flood Risk Webhook').item.json.timestamp }}\nFull report on dashboard.",
+              "value": "=CASCADEAI FLOOD ALERT\n\nHigh Risk Areas: {{ $('Flood Risk Webhook').item.json.high_risk_tiles.join(', ') }}\n\nSpecies at Risk: {{ $('Generate OpenAI Report').item.json.species_affected.join(', ') }}\n\nRisk Summary: {{ $('Generate OpenAI Report').item.json.risk_summary }}\n\nImmediate Action: {{ $('Generate OpenAI Report').item.json.ranger_instructions }}\n\nTime: {{ $('Flood Risk Webhook').item.json.timestamp }}\nFull report on dashboard.",
               "type": "string"
             },
             {
               "id": "report-id",
               "name": "report_id",
-              "value": "={{ $('Generate Claude Report').item.json.id }}",
+              "value": "={{ $('Generate OpenAI Report').item.json.id }}",
               "type": "string"
             },
             {
@@ -107,7 +107,7 @@
             {
               "id": "species-count",
               "name": "species_count",
-              "value": "={{ $('Generate Claude Report').item.json.species_affected.length }}",
+              "value": "={{ $('Generate OpenAI Report').item.json.species_affected.length }}",
               "type": "number"
             }
           ]
@@ -159,8 +159,8 @@
           "value": {
             "Timestamp": "={{ $('Flood Risk Webhook').item.json.timestamp }}",
             "High Risk Tiles": "={{ $('Flood Risk Webhook').item.json.high_risk_tiles.join(', ') }}",
-            "Species Affected": "={{ $('Generate Claude Report').item.json.species_affected.join(', ') }}",
-            "Risk Summary": "={{ $('Generate Claude Report').item.json.risk_summary }}",
+            "Species Affected": "={{ $('Generate OpenAI Report').item.json.species_affected.join(', ') }}",
+            "Risk Summary": "={{ $('Generate OpenAI Report').item.json.risk_summary }}",
             "Report ID": "={{ $('Format SMS Message').item.json.report_id }}",
             "SMS Sent": "=true",
             "Tiles Count": "={{ $('Format SMS Message').item.json.tiles_count }}",
@@ -226,7 +226,7 @@
       "main": [
         [
           {
-            "node": "Generate Claude Report",
+            "node": "Generate OpenAI Report",
             "type": "main",
             "index": 0
           },
@@ -245,7 +245,7 @@
         ]
       ]
     },
-    "Generate Claude Report": {
+    "Generate OpenAI Report": {
       "main": [
         [
           {

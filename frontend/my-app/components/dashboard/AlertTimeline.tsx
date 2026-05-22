@@ -20,7 +20,7 @@ export default function AlertTimeline() {
       ) : highRisk.length === 0 ? (
         <div className="text-center py-6">
           <div className="text-[9px] tracking-[0.2em] text-white/20">NO ACTIVE ALERTS</div>
-          <div className="text-[7px] text-white/10 mt-1">All tiles within safe thresholds</div>
+          <div className="text-[7px] text-white/10 mt-1">All monitored areas within safe thresholds</div>
         </div>
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-1">

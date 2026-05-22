@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
@@ -11,14 +11,15 @@ class ConservationReport(BaseModel):
     tiles_affected: List[str]
     species_affected: List[str]
     flood_risk_summary: str
-    impact_summary: str                 # Claude-generated paragraph
-    action_plan: List[str]              # Claude-generated ordered steps
+    impact_summary: str                 # OpenAI-generated paragraph
+    action_plan: List[str]              # OpenAI-generated ordered steps
     dispatched_to: List[str]            # ["TELEGRAM", "SMS", "GSHEET"]
-    model_used: str = "claude-sonnet-4-20250514"
+    model_used: str = "gpt-5.4-mini"
 
 
 class ReportGenerateRequest(BaseModel):
-    run_id: str                         # links to a RiskRunResponse
+    run_id: Optional[str] = None        # links to a RiskRunResponse
+    tile_ids: List[str] = Field(default_factory=list)  # direct n8n/manual selection path
     force: bool = False                 # regenerate even if recent report exists
 
 
@@ -27,3 +28,7 @@ class ReportGenerateResponse(BaseModel):
     generated: bool
     cached: bool                        # True if returned existing report
     report: ConservationReport
+    id: Optional[str] = None            # n8n-friendly alias
+    species_affected: List[str] = Field(default_factory=list)
+    risk_summary: Optional[str] = None
+    ranger_instructions: Optional[str] = None
