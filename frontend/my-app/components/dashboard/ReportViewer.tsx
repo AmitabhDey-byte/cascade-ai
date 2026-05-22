@@ -1,6 +1,7 @@
 "use client";
-import { ConservationReport, getLatestReport } from "@/lib/api";
+import { ConservationReport } from "@/types";
 import { useEffect, useState } from "react";
+import { useReport } from "@/hooks/userReport";
 
 const REPORT = {
   id: "RPT-2847",
@@ -27,22 +28,31 @@ const DISPATCH_COLORS: Record<string, string> = {
 
 export default function ReportViewer() {
   const [expanded, setExpanded] = useState(true);
-  const [report, setReport] = useState(REPORT);
+  const { report, refresh } = useReport();
+
+  const reportData: {
+    id: string;
+    timestamp: string;
+    severity: string;
+    summary: string;
+    actions: string[];
+    dispatched: string[];
+  } = report
+    ? {
+        id: report.id,
+        timestamp: new Date(report.generated_at).toUTCString().slice(5, 22).toUpperCase() + " UTC",
+        severity: "HIGH",
+        summary: report.estimated_impact || report.risk_summary,
+        actions: report.action_plan.split("\n").filter(Boolean),
+        dispatched: ["API"],
+      }
+    : REPORT;
 
   useEffect(() => {
-    getLatestReport()
-      .then((apiReport: ConservationReport) => {
-        setReport({
-          id: apiReport.id,
-          timestamp: new Date(apiReport.generated_at).toUTCString().slice(5, 22).toUpperCase() + " UTC",
-          severity: "HIGH",
-          summary: apiReport.estimated_impact || apiReport.risk_summary,
-          actions: apiReport.action_plan.split("\n").filter(Boolean),
-          dispatched: ["API"],
-        });
-      })
-      .catch(() => undefined);
-  }, []);
+    const handlePipelineUpdate = () => void refresh();
+    window.addEventListener("cascadeai-pipeline-updated", handlePipelineUpdate);
+    return () => window.removeEventListener("cascadeai-pipeline-updated", handlePipelineUpdate);
+  }, [refresh]);
 
   return (
     <div className="glass-panel rounded-xl p-5">
@@ -63,11 +73,11 @@ export default function ReportViewer() {
       {/* Report ID row */}
       <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
         <div>
-          <span className="text-[9px] font-black tracking-[0.2em] text-white/70">{report.id}</span>
-          <span className="ml-3 text-[7px] tracking-[0.1em] text-white/25">{report.timestamp}</span>
+          <span className="text-[9px] font-black tracking-[0.2em] text-white/70">{reportData.id}</span>
+          <span className="ml-3 text-[7px] tracking-[0.1em] text-white/25">{reportData.timestamp}</span>
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          {report.dispatched.map((d) => (
+          {reportData.dispatched.map((d) => (
             <span key={d} className={`rounded border px-2 py-0.5 text-[7px] tracking-[0.1em] ${DISPATCH_COLORS[d]}`}>
               {d}
             </span>
@@ -80,14 +90,14 @@ export default function ReportViewer() {
           {/* AI Summary */}
           <div className="mb-4 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.03] p-4">
             <div className="text-[7px] tracking-[0.25em] text-emerald-400/50 mb-2">IMPACT SUMMARY</div>
-            <p className="text-[9px] leading-relaxed tracking-[0.08em] text-white/60">{report.summary}</p>
+            <p className="text-[9px] leading-relaxed tracking-[0.08em] text-white/60">{reportData.summary}</p>
           </div>
 
           {/* Action Plan */}
           <div>
             <div className="text-[7px] tracking-[0.25em] text-white/30 mb-2">ACTION PLAN</div>
             <div className="space-y-1.5">
-              {report.actions.map((action, i) => (
+              {reportData.actions.map((action, i) => (
                 <div key={i} className="flex gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2.5">
                   <span className="text-[7px] font-black text-white/20 shrink-0 pt-0.5">
                     {String(i + 1).padStart(2, "0")}

@@ -46,8 +46,14 @@ export function useRiskData(pollIntervalMs = 30000): UseRiskDataReturn {
   const triggerPipeline = useCallback(async (): Promise<PipelineResponse | null> => {
     try {
       setLoading(true);
+      setError(null);
       const result = await runPipeline();
-      await fetchTiles(); // refresh after pipeline runs
+      await fetchTiles(); // refresh risk tiles after pipeline runs
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("cascadeai-pipeline-updated"));
+      }
+
       return result;
     } catch {
       setError("Pipeline trigger failed.");

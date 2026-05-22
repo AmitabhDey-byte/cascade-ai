@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getSpeciesForTile, getHighRiskSpecies } from "@/lib/api";
 import type { SpeciesAlert } from "@/types";
 
@@ -42,17 +42,40 @@ export function useSpeciesData(tileId: string | null): UseSpeciesDataReturn {
 }
 
 /** Fetches all priority species across all high-risk tiles */
-export function useHighRiskSpecies(): UseSpeciesDataReturn {
+export function useHighRiskSpecies(pollIntervalMs = 60000): UseSpeciesDataReturn {
   const [species, setSpecies]   = useState<SpeciesAlert[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
 
-  useEffect(() => {
-    getHighRiskSpecies()
-      .then((data) => setSpecies(data))
-      .catch(() => setError("Failed to fetch high-risk species."))
-      .finally(() => setLoading(false));
+  const fetchSpecies = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await getHighRiskSpecies();
+      setSpecies(data);
+    } catch {
+      setError("Failed to fetch high-risk species.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => void fetchSpecies(), 0);
+    return () => window.clearTimeout(id);
+  }, [fetchSpecies]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchSpecies, pollIntervalMs);
+    return () => clearInterval(interval);
+  }, [fetchSpecies, pollIntervalMs]);
+
+  useEffect(() => {
+    const handleUpdate = () => void fetchSpecies();
+    window.addEventListener("cascadeai-pipeline-updated", handleUpdate);
+    return () => window.removeEventListener("cascadeai-pipeline-updated", handleUpdate);
+  }, [fetchSpecies]);
 
   return {
     species,

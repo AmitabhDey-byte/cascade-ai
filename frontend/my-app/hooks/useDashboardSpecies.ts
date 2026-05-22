@@ -45,6 +45,13 @@ export function useDashboardSpecies(pollIntervalMs = 60000): UseDashboardSpecies
     return () => clearInterval(interval);
   }, [fetchSpecies, pollIntervalMs]);
 
+  // Refresh species immediately after the pipeline finishes
+  useEffect(() => {
+    const handleUpdate = () => void fetchSpecies();
+    window.addEventListener("cascadeai-pipeline-updated", handleUpdate);
+    return () => window.removeEventListener("cascadeai-pipeline-updated", handleUpdate);
+  }, [fetchSpecies]);
+
   return {
     species,
     loading,
