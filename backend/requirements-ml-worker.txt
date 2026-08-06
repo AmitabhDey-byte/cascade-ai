@@ -1,0 +1,11 @@
+# Optional dependencies for a persistent ML worker that runs RAG ingestion and
+# photo verification. Keep these out of requirements.txt so the Vercel API
+# function remains small and can start without downloading a vision model.
+-r requirements.txt
+PyMuPDF
+chromadb
+sentence-transformers
+neo4j
+torch
+pillow
+open-clip-torch

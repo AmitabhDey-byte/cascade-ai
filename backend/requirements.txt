@@ -1,13 +1,10 @@
 fastapi
 uvicorn[standard]
 pydantic-settings
+psycopg[binary]
 httpx
 openai
 numpy
 joblib
 scikit-learn
 h5py
-PyMuPDF
-chromadb
-sentence-transformers
-neo4j
