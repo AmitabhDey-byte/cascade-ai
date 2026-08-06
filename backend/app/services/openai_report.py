@@ -12,7 +12,7 @@ except ImportError:  # pragma: no cover - handled at runtime for degraded instal
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are CascadeAI, an expert conservation intelligence system
-for the Sundarbans delta. Analyze flood risk, weather, and endangered species
+for Assam and West Bengal. Analyze flood risk, weather, and endangered species
 data to generate urgent, field-ready conservation reports for rangers.
 
 Return only valid JSON. Be specific, operational, and concise."""
@@ -73,7 +73,7 @@ def _build_prompt(tiles: List[Dict[str, Any]], species: List[Dict[str, Any]], ra
     )
 
     return f"""
-Generate a conservation response report for the Sundarbans flood forecast.
+Generate a conservation response report for the Assam and West Bengal flood forecast.
 
 High-risk monitored areas:
 {tile_lines or "- No tile rows supplied"}

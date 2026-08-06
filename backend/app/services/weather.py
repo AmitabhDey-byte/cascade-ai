@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 import math
@@ -21,19 +22,23 @@ async def fetch_precipitation_forecast(tiles: Iterable[Mapping] | None = None) -
 
         tiles = get_tile_grid()
 
-    result: Dict[str, Dict] = {}
-    async with httpx.AsyncClient(timeout=20) as client:
-        for tile in tiles:
+    tile_list = list(tiles)
+    # A bounded timeout lets the model fall back quickly instead of consuming
+    # the whole serverless request when a regional upstream is unavailable.
+    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+        async def fetch_tile(tile: Mapping) -> tuple[str, Dict]:
             tile_id = str(tile["tile_id"])
             lat = (float(tile["lat_min"]) + float(tile["lat_max"])) / 2
             lon = (float(tile["lon_min"]) + float(tile["lon_max"])) / 2
             try:
-                result[tile_id] = await _fetch_tile_forecast(client, lat, lon)
+                return tile_id, await _fetch_tile_forecast(client, lat, lon)
             except Exception as exc:
                 logger.warning("Open-Meteo failed for %s: %s", tile_id, exc)
-                result[tile_id] = _fallback_forecast(tile_id, lat, lon)
+                return tile_id, _fallback_forecast(tile_id, lat, lon)
 
-    return result
+        pairs = await asyncio.gather(*(fetch_tile(tile) for tile in tile_list))
+
+    return dict(pairs)
 
 
 async def _fetch_tile_forecast(client: httpx.AsyncClient, lat: float, lon: float) -> Dict:
@@ -62,6 +67,7 @@ async def _fetch_tile_forecast(client: httpx.AsyncClient, lat: float, lon: float
         "precip_72h": round(precip_72h, 2),
         "max_hourly_precip": round(max_hourly, 2),
         "storm_risk": max_hourly >= 12 or precip_24h >= 65,
+        "elevation_m": float(resp.json().get("elevation") or 0.0),
         "source": "open-meteo",
     }
 
@@ -86,6 +92,7 @@ def _fallback_forecast(tile_id: str, lat: float, lon: float) -> Dict:
         "precip_72h": round(precip_72h, 2),
         "max_hourly_precip": round(max_hourly, 2),
         "storm_risk": intensity >= 0.68,
+        "elevation_m": 0.0,
         "source": "fallback",
         "centroid": {"lat": round(lat, 4), "lon": round(lon, 4)},
     }

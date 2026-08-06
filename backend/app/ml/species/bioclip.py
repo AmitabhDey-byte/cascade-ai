@@ -8,24 +8,26 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Sundarbans target species — BioCLIP matches against these
+# Assam and West Bengal target species — BioCLIP matches against these.
 # Format: "Common Name (Scientific Name)" gives BioCLIP more context
-SUNDARBANS_LABELS = [
+REGIONAL_SPECIES_LABELS = [
     "Royal Bengal Tiger (Panthera tigris tigris)",
-    "Irrawaddy Dolphin (Orcaella brevirostris)",
-    "Saltwater Crocodile (Crocodylus porosus)",
     "Ganges River Dolphin (Platanista gangetica)",
+    "Indian One-horned Rhinoceros (Rhinoceros unicornis)",
+    "Asian Elephant (Elephas maximus)",
+    "Western Hoolock Gibbon (Hoolock hoolock)",
+    "Golden Langur (Trachypithecus geei)",
+    "Clouded Leopard (Neofelis nebulosa)",
+    "Red Panda (Ailurus fulgens)",
+    "Indian Pangolin (Manis crassicaudata)",
     "Fishing Cat (Prionailurus viverrinus)",
     "Smooth-coated Otter (Lutrogale perspicillata)",
-    "Dusky Eagle Owl (Bubo coromandus)",
-    "Brahminy Kite (Haliastur indus)",
-    "Sambar Deer (Cervus unicolor)",
-    "Wild Boar (Sus scrofa)",
-    "Estuarine Crocodile (Crocodylus porosus)",
-    "Indian Python (Python molurus)",
+    "Bengal Florican (Houbaropsis bengalensis)",
+    "Great Hornbill (Buceros bicornis)",
     "King Cobra (Ophiophagus hannah)",
-    "Spotted Deer (Axis axis)",
-    "Jungle Cat (Felis chaus)",
+    "Gaur (Bos gaurus)",
+    "Sambar Deer (Rusa unicolor)",
+    "Saltwater Crocodile (Crocodylus porosus)",
 ]
 
 # Module-level cache — model loaded once at startup
@@ -72,7 +74,7 @@ def verify_species(observations: List[Dict]) -> List[Dict]:
     verified = []
 
     # Tokenise all labels once — same for every image
-    text_tokens = _tokenizer(SUNDARBANS_LABELS)
+    text_tokens = _tokenizer(REGIONAL_SPECIES_LABELS)
 
     with torch.no_grad():
         text_features = _model.encode_text(text_tokens)
@@ -112,7 +114,7 @@ def _run_inference(obs: Dict, text_features: torch.Tensor) -> Optional[Dict]:
     if confidence < min_confidence:
         return None   # reject — not confident enough
 
-    matched_label = SUNDARBANS_LABELS[best_idx]
+    matched_label = REGIONAL_SPECIES_LABELS[best_idx]
 
     # Parse "Common Name (Scientific Name)" format
     if "(" in matched_label:

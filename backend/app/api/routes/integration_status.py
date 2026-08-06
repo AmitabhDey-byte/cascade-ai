@@ -36,28 +36,43 @@ async def get_system_status():
         }
         status["healthy"] = False
     
-    # 2. Check BioCLIP Model
+    # 2. Check BioCLIP configuration. Loading it here would download a large
+    # model during a lightweight status probe, which is unsafe for serverless.
     try:
-        from app.ml.species.bioclip import load_bioclip
-        load_bioclip()
-        status["models"]["bioclip"] = {
-            "status": "loaded",
-            "description": "BioCLIP computer vision model for species identification"
-        }
+        from app.core.config import settings
+        if settings.BIOCLIP_ENABLED:
+            status["models"]["bioclip"] = {
+                "status": "on_demand",
+                "description": "BioCLIP is enabled and loads only when /species/verify is called",
+            }
+        else:
+            status["models"]["bioclip"] = {
+                "status": "disabled",
+                "description": "Disabled for this deployment; use an ML worker for photo verification",
+            }
     except Exception as e:
         status["models"]["bioclip"] = {
             "status": "failed",
             "error": str(e),
-            "description": "BioCLIP model loading failed (will load on first use)"
+            "description": "BioCLIP configuration could not be checked"
         }
     
-    # 3. Check Database
+    # 3. Check Neon Postgres persistence
     try:
-        from app.db import risk_repo
-        status["services"]["database"] = {
-            "status": "connected",
-            "description": "MongoDB connection for risk tiles and species data"
-        }
+        from app.db import neon
+        if not neon.is_configured():
+            status["services"]["database"] = {
+                "status": "not_configured",
+                "description": "DATABASE_URL is absent; this local process uses the explicit demo fallback.",
+            }
+        elif await neon.healthcheck():
+            status["services"]["database"] = {
+                "status": "connected",
+                "provider": "neon-postgres",
+                "description": "Forecast runs, risk tiles, species, reports, and chat history are durable.",
+            }
+        else:
+            raise RuntimeError("Neon health check returned an unexpected response.")
     except Exception as e:
         status["services"]["database"] = {
             "status": "failed",
@@ -85,25 +100,17 @@ async def get_system_status():
             "error": str(e)
         }
     
-    # 5. Check RAG System
-    try:
-        from app.rag.core.main import app as rag_app
-        status["services"]["rag"] = {
-            "status": "available",
-            "description": "RAG pipeline for conservation knowledge retrieval"
-        }
-    except Exception as e:
-        status["services"]["rag"] = {
-            "status": "unavailable",
-            "error": str(e),
-            "description": "RAG system not fully integrated"
-        }
+    # 5. RAG is intentionally moved to the optional ML worker dependency set.
+    status["services"]["rag"] = {
+        "status": "worker_required",
+        "description": "Vercel uses a concise local conservation fallback; deploy the ML worker to enable vector retrieval",
+    }
     
     # 6. Check Available Endpoints
     status["endpoints"] = {
         "flood_risk": "/risk/tiles - Get flood risk predictions",
         "flood_run": "/risk/run - Trigger flood prediction pipeline",
-        "species_high_risk": "/species/high-risk-with-bioclip - Get species verified with BioCLIP",
+        "species_high_risk": "/species/high-risk - Get species in the current high-risk forecast",
         "species_verify": "/species/verify - Verify species with BioCLIP",
         "chat": "/chat/chat - AI chat using all models",
         "status": "/status - This endpoint",
@@ -111,11 +118,11 @@ async def get_system_status():
     
     # 7. Summary
     status["summary"] = {
-        "flood_model": "Connected - Uses satellite & weather data",
-        "bioclip": "Connected - Computer vision species verification",
-        "openai": "Connected - LLM for response generation",
-        "rag": "Connected - Conservation knowledge retrieval",
-        "database": "Connected - Species & risk data storage",
+        "flood_model": "Available for on-demand forecast runs",
+        "bioclip": "Optional ML worker capability",
+        "openai": "Optional LLM response generation with local fallback",
+        "rag": "Optional ML worker capability",
+        "database": "Neon Postgres when DATABASE_URL is configured; demo fallback only for local development",
     }
     
     return status

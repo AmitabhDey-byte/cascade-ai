@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.db import chat_repo
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -24,10 +25,6 @@ class ChatResponse(BaseModel):
     model_used: str
 
 
-# Simple in-memory session store (in production, use database)
-_sessions: dict[str, list[dict]] = {}
-
-
 @router.post("/chat", response_model=ChatResponse)
 async def chat(message: ChatMessage) -> ChatResponse:
     """
@@ -40,15 +37,8 @@ async def chat(message: ChatMessage) -> ChatResponse:
     """
     session_id = message.session_id or str(uuid4())
     
-    # Initialize session if new
-    if session_id not in _sessions:
-        _sessions[session_id] = []
-    
     # Store user message
-    _sessions[session_id].append({
-        "role": "user",
-        "content": message.content
-    })
+    await chat_repo.append_message(session_id, "user", message.content)
     
     # Build comprehensive context from all models
     context_parts = []
@@ -77,10 +67,12 @@ async def chat(message: ChatMessage) -> ChatResponse:
         context_parts.append("## ENDANGERED SPECIES AT RISK (BioCLIP Verified)")
         context_parts.append("---")
         for species in message.species[:5]:  # Top 5 species
-            name = species.get('name', 'Unknown')
-            latin = species.get('latin', 'Unknown sp.')
+            # The dashboard sends normalized frontend fields, while direct API
+            # callers generally send the backend schema. Support both.
+            name = species.get('name') or species.get('species_name') or 'Unknown'
+            latin = species.get('latin') or species.get('scientific_name') or 'Unknown sp.'
             iucn = species.get('iucn_status', 'Unknown')
-            confidence = species.get('bioclip_confidence', 0)
+            confidence = species.get('bioclip_confidence') or species.get('confidence_score') or 0
             threat = species.get('primary_threat', 'Habitat disruption')
             
             context_parts.append(f"### {name} ({latin})")
@@ -93,12 +85,12 @@ async def chat(message: ChatMessage) -> ChatResponse:
     
     # Build conversation history for context
     conversation_context = ""
-    for msg in _sessions[session_id][-10:]:  # Last 10 messages
+    for msg in await chat_repo.get_recent_messages(session_id, limit=10):
         conversation_context += f"{msg['role'].upper()}: {msg['content']}\n"
     
     # Prepare the system prompt for LLM
     system_prompt = """You are CascadeAI, an expert conservation and flood risk intelligence assistant 
-for the Sundarbans delta. You help rangers, ecologists, and decision-makers understand:
+for Assam and West Bengal. You help rangers, ecologists, and decision-makers understand:
 
 1. FLOOD RISKS: Using ML-based predictions from satellite data and weather forecasts
 2. ENDANGERED SPECIES: Species verified with BioCLIP computer vision from field observations
@@ -173,14 +165,7 @@ For specific guidance, please provide more details about your query."""
         model_used = "fallback (OpenAI unavailable)"
     
     # Store AI response in session
-    _sessions[session_id].append({
-        "role": "assistant",
-        "content": ai_response
-    })
-    
-    # Clean up old sessions (keep last 100 messages per session)
-    if len(_sessions[session_id]) > 100:
-        _sessions[session_id] = _sessions[session_id][-100:]
+    await chat_repo.append_message(session_id, "assistant", ai_response)
     
     return ChatResponse(
         response=ai_response,
@@ -192,19 +177,19 @@ For specific guidance, please provide more details about your query."""
 @router.get("/chat/session/{session_id}")
 async def get_session(session_id: str):
     """Retrieve conversation history for a session."""
-    if session_id not in _sessions:
+    messages = await chat_repo.get_session_messages(session_id)
+    if not messages:
         raise HTTPException(status_code=404, detail="Session not found")
     
     return {
         "session_id": session_id,
-        "messages": _sessions[session_id]
+        "messages": messages
     }
 
 
 @router.delete("/chat/session/{session_id}")
 async def clear_session(session_id: str):
     """Clear a conversation session."""
-    if session_id in _sessions:
-        del _sessions[session_id]
+    await chat_repo.clear_session(session_id)
     
     return {"status": "ok", "session_id": session_id}

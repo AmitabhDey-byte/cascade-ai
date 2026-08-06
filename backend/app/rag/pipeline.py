@@ -50,8 +50,8 @@ async def _retrieve_context(query: str) -> str:
     except Exception as exc:
         logger.warning("RAG context unavailable, using concise fallback context: %s", exc)
         return (
-            "Sundarbans response priorities: protect ranger safety, avoid animal displacement into villages, "
-            "prioritize Critically Endangered and Endangered species, monitor freshwater/estuarine corridors, "
+            "Assam and West Bengal response priorities: protect ranger safety, avoid animal displacement into villages, "
+            "prioritize Critically Endangered and Endangered species, monitor riverine, wetland, and forest corridors, "
             "and coordinate alerts through local field teams."
         )
 
@@ -63,7 +63,7 @@ def _build_query(run_id: str, tiles: List[Dict[str, Any]], species: List[Dict[st
         if item.get("name") or item.get("latin") or item.get("species_name")
     )
     tile_ids = ", ".join(str(tile.get("tile_id")) for tile in tiles[:8] if tile.get("tile_id"))
-    return f"Sundarbans flood conservation response {run_id} {tile_ids} {species_names}"
+    return f"Assam West Bengal flood conservation response {run_id} {tile_ids} {species_names}"
 
 
 def _to_dict(value: Any) -> Dict[str, Any]:

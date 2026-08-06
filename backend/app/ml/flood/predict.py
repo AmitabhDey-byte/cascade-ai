@@ -17,13 +17,22 @@ _model = None
 def load_model():
     """Loads model from disk into memory. Called once at startup."""
     global _model
+    if _model is not None:
+        return _model
     if not os.path.exists(WEIGHTS_PATH):
         raise FileNotFoundError(
             f"Model not found at {WEIGHTS_PATH}. "
             "Run scripts/train_flood_model.py first."
         )
     _model = joblib.load(WEIGHTS_PATH)
+    # The persisted RandomForest was trained with n_jobs=-1. Constraining
+    # inference avoids worker-process spawning failures on Windows and keeps a
+    # serverless function from over-subscribing the runtime.
+    forest = getattr(_model, "named_steps", {}).get("rf")
+    if forest is not None:
+        forest.n_jobs = 1
     logger.info("Flood risk model loaded successfully.")
+    return _model
 
 
 def predict_flood_risk(
@@ -39,7 +48,7 @@ def predict_flood_risk(
 
     Returns:
         {
-            "sundarbans_tile_01": {
+            "west_bengal_01": {
                 "risk_score": 0.82,
                 "is_high_risk": True,
                 "flood_probability_24h": 0.71,

@@ -1,6 +1,7 @@
+import logging
+import asyncio
 import os
 import tempfile
-import logging
 import numpy as np
 import httpx
 from datetime import datetime, timedelta
@@ -9,31 +10,58 @@ from typing import Dict, List
 logger = logging.getLogger(__name__)
 BBOX = {
     "lat_min": 21.5,
-    "lat_max": 22.5,
-    "lon_min": 88.0,
-    "lon_max": 89.5,
+    "lat_max": 28.45,
+    "lon_min": 85.75,
+    "lon_max": 96.0,
 }
 CMR_URL        = "https://cmr.earthdata.nasa.gov/search/granules.json"
 NSIDC_BASE     = "https://n5eil01u.ecs.nsidc.org"
 SMAP_PRODUCT   = "SMAP/SPL3SMP_E.006"    
 POWER_URL      = "https://power.larc.nasa.gov/api/temporal/daily/point"
-TILES: List[Dict] = [
-    {"tile_id": "sundarbans_tile_01", "lat_min": 21.5, "lat_max": 22.0, "lon_min": 88.0, "lon_max": 88.5},
-    {"tile_id": "sundarbans_tile_02", "lat_min": 21.5, "lat_max": 22.0, "lon_min": 88.5, "lon_max": 89.0},
-    {"tile_id": "sundarbans_tile_03", "lat_min": 21.5, "lat_max": 22.0, "lon_min": 89.0, "lon_max": 89.5},
-    {"tile_id": "sundarbans_tile_04", "lat_min": 22.0, "lat_max": 22.5, "lon_min": 88.0, "lon_max": 88.5},
-    {"tile_id": "sundarbans_tile_05", "lat_min": 22.0, "lat_max": 22.5, "lon_min": 88.5, "lon_max": 89.0},
-    {"tile_id": "sundarbans_tile_06", "lat_min": 22.0, "lat_max": 22.5, "lon_min": 89.0, "lon_max": 89.5},
-]
+GRID_DEGREES = 1.0
+REGIONS = (
+    ("west_bengal", "West Bengal", 21.5, 27.4, 85.75, 89.95),
+    ("assam", "Assam", 24.0, 28.45, 89.6, 96.0),
+)
+
+
+def _build_tiles() -> List[Dict]:
+    tiles: List[Dict] = []
+    for slug, region, lat_start, lat_end, lon_start, lon_end in REGIONS:
+        index = 1
+        lat = lat_start
+        while lat < lat_end:
+            lon = lon_start
+            while lon < lon_end:
+                tiles.append({
+                    "tile_id": f"{slug}_{index:02d}",
+                    "region": region,
+                    "lat_min": round(lat, 4),
+                    "lat_max": round(min(lat + GRID_DEGREES, lat_end), 4),
+                    "lon_min": round(lon, 4),
+                    "lon_max": round(min(lon + GRID_DEGREES, lon_end), 4),
+                })
+                index += 1
+                lon += GRID_DEGREES
+            lat += GRID_DEGREES
+    return tiles
+
+
+TILES: List[Dict] = _build_tiles()
 async def fetch_soil_moisture() -> Dict[str, float]:
+    data, _ = await fetch_soil_moisture_with_source()
+    return data
+
+
+async def fetch_soil_moisture_with_source() -> tuple[Dict[str, float], str]:
     """
     Returns soil moisture (0.0 – 1.0) per tile.
     Tries SMAP first. Falls back to NASA POWER if SMAP fails.
 
     Returns:
         {
-            "sundarbans_tile_01": 0.42,
-            "sundarbans_tile_02": 0.38,
+            "west_bengal_01": 0.42,
+            "assam_01": 0.38,
             ...
         }
     """
@@ -41,10 +69,10 @@ async def fetch_soil_moisture() -> Dict[str, float]:
         logger.info("Fetching SMAP soil moisture data...")
         data = await _fetch_smap()
         logger.info("SMAP fetch successful.")
-        return data
+        return data, "nasa-smap"
     except Exception as e:
         logger.warning(f"SMAP failed ({e}). Falling back to NASA POWER.")
-        return await _fetch_power_fallback()
+        return await _fetch_power_fallback(), "nasa-power"
 async def _fetch_smap() -> Dict[str, float]:
     """Find latest SMAP granule → download HDF5 → extract moisture per tile."""
     from app.core.config import settings
@@ -66,7 +94,7 @@ async def _fetch_smap() -> Dict[str, float]:
 async def _find_latest_granule(token: str) -> str:
     """
     Queries NASA CMR to find the download URL of the most recent
-    SMAP SPL3SMP_E granule that covers the Sundarbans bounding box.
+    SMAP SPL3SMP_E granule that covers the Assam and West Bengal envelope.
     """
     for days_back in range(0, 3):
         target_date = datetime.utcnow() - timedelta(days=days_back)
@@ -159,39 +187,36 @@ async def _fetch_power_fallback() -> Dict[str, float]:
     GWETROOT = Root Zone Soil Wetness (0–1 scale, already normalised).
     One API call per tile using tile centroid coordinates.
     """
-    result = {}
     date_str = (datetime.utcnow() - timedelta(days=1)).strftime("%Y%m%d")
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        for tile in TILES:
+    # Limit concurrency to remain polite to NASA POWER, while keeping a
+    # state-wide 65-cell run inside a practical serverless time budget.
+    async with httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=4.0)) as client:
+        semaphore = asyncio.Semaphore(12)
+
+        async def fetch_tile(tile: Dict) -> tuple[str, float]:
             lat_center = (tile["lat_min"] + tile["lat_max"]) / 2
             lon_center = (tile["lon_min"] + tile["lon_max"]) / 2
-
             params = {
                 "parameters": "GWETROOT",
-                "community":  "AG",
-                "longitude":  lon_center,
-                "latitude":   lat_center,
-                "start":      date_str,
-                "end":        date_str,
-                "format":     "JSON",
+                "community": "AG",
+                "longitude": lon_center,
+                "latitude": lat_center,
+                "start": date_str,
+                "end": date_str,
+                "format": "JSON",
             }
-
             try:
-                resp = await client.get(POWER_URL, params=params)
+                async with semaphore:
+                    resp = await client.get(POWER_URL, params=params)
                 resp.raise_for_status()
-                data = resp.json()
-                value = (
-                    data["properties"]["parameter"]["GWETROOT"]
-                    .get(date_str, 0.5)
-                )
-                result[tile["tile_id"]] = round(min(max(float(value), 0.0), 1.0), 4)
+                value = resp.json()["properties"]["parameter"]["GWETROOT"].get(date_str, 0.5)
+                return tile["tile_id"], round(min(max(float(value), 0.0), 1.0), 4)
+            except Exception as exc:
+                logger.error("POWER fallback failed for %s: %s", tile["tile_id"], exc)
+                return tile["tile_id"], 0.5
 
-            except Exception as e:
-                logger.error(f"POWER fallback failed for {tile['tile_id']}: {e}")
-                result[tile["tile_id"]] = 0.5 
-
-    return result
+        return dict(await asyncio.gather(*(fetch_tile(tile) for tile in TILES)))
 def get_tile_grid() -> List[Dict]:
     """Returns the full tile grid — used by scripts/seed_mongo.py."""
     return TILES

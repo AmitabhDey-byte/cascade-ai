@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-# Pre-loaded IUCN data for Sundarbans species
+# Pre-loaded IUCN data for Assam and West Bengal target species
 # CR = Critically Endangered, EN = Endangered, VU = Vulnerable
 # NT = Near Threatened, LC = Least Concern
 # Expand this dict with your full IUCN API download

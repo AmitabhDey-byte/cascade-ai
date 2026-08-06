@@ -3,11 +3,11 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.core.config import settings
 from app.db import species_repo, risk_repo
-from app.ml.species.bioclip import verify_species, load_bioclip
 from app.schemas.species import SpeciesObservation
 
 logger = logging.getLogger(__name__)
@@ -26,23 +26,23 @@ class SpeciesVerificationResponse(BaseModel):
     timestamp: datetime
 
 
-@router.on_event("startup")
-async def startup_bioclip():
-    """Load BioCLIP model at server startup."""
-    try:
-        load_bioclip()
-        logger.info("BioCLIP loaded successfully at startup")
-    except Exception as e:
-        logger.warning(f"BioCLIP failed to load: {e}. Will load on first use.")
-
-
 @router.post("/verify", response_model=SpeciesVerificationResponse)
 async def verify_species_observations(request: SpeciesVerificationRequest) -> SpeciesVerificationResponse:
     """
     Verify species observations using BioCLIP.
     Returns only observations that pass confidence threshold.
     """
+    if not settings.BIOCLIP_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail="BioCLIP verification is disabled on this API deployment. Run it on a configured ML worker.",
+        )
+
     try:
+        # Import only when this explicitly enabled endpoint is called. This
+        # keeps the API usable on Vercel without a large ML model download.
+        from app.ml.species.bioclip import verify_species
+
         logger.info(f"Verifying {len(request.observations)} observations with BioCLIP")
         
         # Run BioCLIP verification
@@ -52,20 +52,21 @@ async def verify_species_observations(request: SpeciesVerificationRequest) -> Sp
         species_list = [
             SpeciesObservation(
                 gbif_id=obs.get("gbif_id", f"obs-{i}"),
-                name=obs.get("name", "Unknown"),
-                latin=obs.get("latin", "Unknown sp."),
+                name=obs.get("verified_species", obs.get("name", "Unknown")),
+                latin=obs.get("verified_scientific", obs.get("latin", "Unknown sp.")),
                 iucn_status=obs.get("iucn_status", "DD"),
                 tile_id=request.tile_id or obs.get("tile_id", "unknown"),
                 lat=obs.get("lat", 0.0),
                 lng=obs.get("lng", 0.0),
                 observed_at=obs.get("observed_at", datetime.utcnow()),
-                bioclip_confidence=obs.get("bioclip_confidence", 0.0),
+                bioclip_confidence=obs.get("confidence_score", obs.get("bioclip_confidence", 0.0)),
                 photo_url=obs.get("photo_url"),
                 flood_risk_score=obs.get("flood_risk_score", 0.0),
                 primary_threat=obs.get("primary_threat", "Habitat disruption"),
             )
             for i, obs in enumerate(verified_obs)
         ]
+        await species_repo.insert_species_alerts(species_list)
         
         logger.info(f"BioCLIP verified {len(species_list)}/{len(request.observations)} observations")
         

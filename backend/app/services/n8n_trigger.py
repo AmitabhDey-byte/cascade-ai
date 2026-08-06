@@ -18,6 +18,10 @@ async def trigger_n8n(
     POST flood alert data to n8n.
     n8n can then generate the report, send WhatsApp/SMS, and log the cycle.
     """
+    if not settings.N8N_WEBHOOK_URL:
+        logger.info("n8n webhook is not configured; skipping alert dispatch.")
+        return {"status": "skipped", "triggered": False, "reason": "N8N_WEBHOOK_URL not configured"}
+
     payload = {
         "run_id": run_id,
         "high_risk_tiles": high_risk_tiles,
