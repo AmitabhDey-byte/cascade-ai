@@ -10,9 +10,9 @@ const navLinks = [
 
 const STATS = [
   { value: "72H", label: "FORECAST HORIZON" },
-  { value: "847", label: "SPECIES MONITORED" },
-  { value: "12H", label: "UPDATE CYCLE" },
-  { value: "98.4%", label: "MODEL ACCURACY" },
+  { value: "65", label: "COVERAGE CELLS" },
+  { value: "2", label: "OPERATING REGIONS" },
+  { value: "LIVE", label: "SOURCE-TRACEABLE DATA" },
 ];
 
 export default function Home() {
@@ -84,7 +84,7 @@ export default function Home() {
             {/* Status badge */}
             <div className="pointer-events-auto mb-6 inline-flex items-center gap-3 rounded-full border border-emerald-400/20 bg-emerald-400/5 px-4 py-2 text-[10px] tracking-[0.25em] text-emerald-400 backdrop-blur-xl">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              SYSTEM ACTIVE · SUNDARBANS MONITORING
+              SYSTEM ACTIVE · ASSAM + WEST BENGAL
             </div>
 
             <h1
@@ -104,9 +104,9 @@ export default function Home() {
             </h1>
 
             <p className="mt-6 max-w-xl text-xs leading-loose tracking-[0.15em] text-white/50 md:text-sm">
-              CascadeAI fuses satellite soil moisture, precipitation forecasting,
-              and species CV into a unified disaster intelligence command center
-              — protecting biodiversity at the edge of climate collapse.
+              CascadeAI fuses satellite soil moisture, weather forecasts, and
+              field species observations into a unified disaster intelligence command
+              centre for Assam and West Bengal.
             </p>
 
             {/* CTA Buttons */}
@@ -127,7 +127,7 @@ export default function Home() {
 
             {/* Data source badges */}
             <div className="mt-10 flex flex-wrap gap-2 pointer-events-auto">
-              {["NASA SMAP", "NOAA", "GBIF", "IUCN", "IMD", "BioCLIP"].map((item) => (
+              {["NASA SMAP", "NASA POWER", "OPEN-METEO", "GBIF", "IUCN", "BioCLIP"].map((item) => (
                 <div
                   key={item}
                   className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-[9px] tracking-[0.25em] text-white/50 backdrop-blur-xl"

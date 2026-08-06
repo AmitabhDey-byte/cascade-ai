@@ -1,222 +1,121 @@
 "use client";
-import { ConservationReport, getLatestReport } from "@/lib/api";
-import Nav from "@/components/Nav";
+
 import { useEffect, useState } from "react";
+import Nav from "@/components/Nav";
+import { getLatestReport } from "@/lib/api";
+import type { ConservationReport } from "@/types";
 
-const REPORTS = [
-  {
-    id: "RPT-2847",
-    timestamp: "21 MAY 2026 · 06:42 UTC",
-    trigger: "FLOOD RISK > 0.70 · 4 AREAS",
-    severity: "HIGH",
-    tilesAffected: 4,
-    speciesAffected: 6,
-    summary:
-      "Cycle 48 analysis flags critical flood risk across monitored areas T-23, T-24, T-33, T-44 following 187mm precipitation forecast for next 72 hours. Royal Bengal Tiger and Ganges River Shark face highest displacement risk. Immediate ranger deployment recommended.",
-    actions: [
-      "Deploy ranger team to T-23 and T-24 by 08:00 UTC",
-      "Set up temporary monitoring stations at grid perimeter",
-      "Notify IUCN South Asia desk via secure channel",
-      "Activate WhatsApp dispatch for all on-call rangers",
-      "Upload updated risk map to command portal",
-    ],
-    dispatched: ["WHATSAPP", "EMAIL", "GSHEET"],
-  },
-  {
-    id: "RPT-2846",
-    timestamp: "20 MAY 2026 · 18:30 UTC",
-    trigger: "ROUTINE CYCLE · NO THRESHOLD BREACH",
-    severity: "LOW",
-    tilesAffected: 1,
-    speciesAffected: 2,
-    summary:
-      "Routine 12-hour scan. Risk scores within acceptable bounds. Olive Ridley nesting activity detected in T-33 — logged for seasonal tracking. No immediate action required.",
-    actions: [
-      "Continue passive monitoring of T-33 nesting zone",
-      "Log Olive Ridley observation to GBIF portal",
-    ],
-    dispatched: ["GSHEET"],
-  },
-  {
-    id: "RPT-2845",
-    timestamp: "20 MAY 2026 · 06:28 UTC",
-    trigger: "IMD CYCLONE ALERT WEBHOOK",
-    severity: "CRITICAL",
-    tilesAffected: 7,
-    speciesAffected: 11,
-    summary:
-      "IMD cyclone precursor signal received. Local model rerun on fresh SMAP data; 7 monitored areas now sit above the 0.70 threshold. Estimated landfall T+54H. All species in affected zones face severe displacement. Emergency protocol initiated.",
-    actions: [
-      "Emergency protocol ALPHA activated",
-      "All field teams recalled to base",
-      "Coordination call with Bangladesh Forest Dept at 09:00 UTC",
-      "IUCN emergency fund application submitted",
-      "Satellite phone check-in every 4 hours",
-      "Pre-position evacuation boats at T-23 jetty",
-    ],
-    dispatched: ["WHATSAPP", "EMAIL", "GSHEET"],
-  },
-];
-
-const SEVERITY_STYLES: Record<string, { label: string; color: string; border: string; bg: string }> = {
-  CRITICAL: { label: "CRITICAL", color: "text-red-500", border: "border-red-500/30", bg: "bg-red-500/5" },
-  HIGH: { label: "HIGH", color: "text-amber-400", border: "border-amber-400/30", bg: "bg-amber-400/5" },
-  LOW: { label: "LOW", color: "text-emerald-400", border: "border-emerald-400/30", bg: "bg-emerald-400/5" },
-};
-
-const DISPATCH_COLORS: Record<string, string> = {
-  WHATSAPP: "bg-emerald-400/10 text-emerald-300 border-emerald-400/20",
-  SMS: "bg-violet-400/10 text-violet-400 border-violet-400/20",
-  EMAIL: "bg-white/10 text-white/60 border-white/10",
-  GSHEET: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
-  TWILIO: "bg-red-400/10 text-red-400 border-red-400/20",
+const SEVERITY_STYLES: Record<string, { color: string; border: string; bg: string }> = {
+  CRITICAL: { color: "text-red-500", border: "border-red-500/30", bg: "bg-red-500/5" },
+  HIGH: { color: "text-amber-400", border: "border-amber-400/30", bg: "bg-amber-400/5" },
+  MED: { color: "text-yellow-300", border: "border-yellow-300/30", bg: "bg-yellow-300/5" },
+  LOW: { color: "text-emerald-400", border: "border-emerald-400/30", bg: "bg-emerald-400/5" },
 };
 
 export default function Reports() {
-  const [reports, setReports] = useState(REPORTS);
-  const [activeReport, setActiveReport] = useState(REPORTS[0]);
+  const [report, setReport] = useState<ConservationReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getLatestReport()
-      .then((apiReport: ConservationReport) => {
-        const latest = {
-          id: apiReport.id,
-          timestamp: new Date(apiReport.generated_at).toUTCString().slice(5, 22).toUpperCase() + " UTC",
-          trigger: apiReport.risk_summary,
-          severity: "HIGH",
-          tilesAffected: apiReport.tile_ids.length,
-          speciesAffected: apiReport.species_affected.length,
-          summary: apiReport.estimated_impact || apiReport.risk_summary,
-          actions: apiReport.action_plan.split("\n").filter(Boolean),
-          dispatched: ["API"],
-        };
-        setReports([latest, ...REPORTS.filter((report) => report.id !== latest.id)]);
-        setActiveReport(latest);
+    const controller = new AbortController();
+    void getLatestReport()
+      .then((latest) => {
+        if (!controller.signal.aborted) setReport(latest);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!controller.signal.aborted) setError("No report is available yet. Generate one from the dashboard after a forecast is available.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
+
+  const severity = report?.severity && SEVERITY_STYLES[report.severity]
+    ? report.severity
+    : report ? severityFromRiskSummary(report.risk_summary) : "LOW";
+  const style = SEVERITY_STYLES[severity];
 
   return (
     <div className="min-h-screen bg-transparent font-['Orbitron'] text-white">
       <div
-        className="fixed inset-0 pointer-events-none"
+        className="pointer-events-none fixed inset-0"
         style={{
-          backgroundImage: `linear-gradient(rgba(0,255,140,0.02) 1px, transparent 1px),linear-gradient(90deg, rgba(0,255,140,0.02) 1px, transparent 1px)`,
+          backgroundImage: "linear-gradient(rgba(0,255,140,0.02) 1px, transparent 1px),linear-gradient(90deg, rgba(0,255,140,0.02) 1px, transparent 1px)",
           backgroundSize: "50px 50px",
         }}
       />
       <Nav />
 
-      <main className="relative mx-auto max-w-7xl px-6 py-8">
+      <main className="relative mx-auto max-w-5xl px-6 py-8">
         <div className="mb-8">
           <h2 className="text-lg font-black tracking-[0.2em]">IMPACT REPORTS</h2>
-          <p className="mt-1 text-[9px] tracking-[0.25em] text-white/30">OPENAI-GENERATED · RAG SYNTHESIS · N8N DISPATCH</p>
+          <p className="mt-1 text-[9px] tracking-[0.25em] text-white/30">FORECAST-DRIVEN CONSERVATION RESPONSE</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Report list */}
-          <div className="space-y-3">
-            {reports.map((r) => {
-              const s = SEVERITY_STYLES[r.severity];
-              const isActive = activeReport.id === r.id;
-              return (
-                <div
-                  key={r.id}
-                  onClick={() => setActiveReport(r)}
-                  className={`cursor-pointer rounded-xl border p-4 transition ${
-                    isActive ? `${s.border} ${s.bg}` : "border-white/[0.12] bg-white/[0.06] backdrop-blur-xl hover:border-white/[0.18]"
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <span className="text-[9px] font-black tracking-[0.2em] text-white/60">{r.id}</span>
-                    <span className={`text-[7px] font-black tracking-[0.2em] ${s.color}`}>{r.severity}</span>
-                  </div>
-                  <div className="text-[7px] tracking-[0.1em] text-white/25 mb-1">{r.timestamp}</div>
-                  <div className="text-[8px] tracking-[0.1em] text-white/50 leading-relaxed">{r.trigger}</div>
-                  <div className="mt-3 flex gap-3">
-                    <span className="text-[7px] tracking-[0.1em] text-white/30">{r.tilesAffected} AREAS</span>
-                    <span className="text-[7px] tracking-[0.1em] text-white/30">{r.speciesAffected} SPECIES</span>
-                  </div>
+        {loading ? (
+          <div className="glass-panel rounded-xl p-8 text-center text-[9px] tracking-[0.2em] text-white/30">LOADING LATEST REPORT</div>
+        ) : report ? (
+          <article className="glass-panel rounded-xl p-6">
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="mb-1 flex items-center gap-3">
+                  <span className="text-base font-black tracking-[0.2em]">{report.id}</span>
+                  <span className={`rounded-lg border px-3 py-1 text-[7px] font-black tracking-[0.25em] ${style.color} ${style.border} ${style.bg}`}>
+                    {severity}
+                  </span>
                 </div>
-              );
-            })}
+                <div className="text-[8px] tracking-[0.15em] text-white/30">
+                  {new Date(report.generated_at).toUTCString().slice(5, 22).toUpperCase()} UTC
+                </div>
+              </div>
+              <div className="text-right text-[8px] tracking-[0.12em] text-white/40">
+                <div>{report.tile_ids.length} AFFECTED AREAS</div>
+                <div className="mt-1">{report.species_affected.length} AFFECTED SPECIES</div>
+              </div>
+            </div>
+
+            <Section title="FORECAST SUMMARY"><p>{report.risk_summary}</p></Section>
+            <Section title="ESTIMATED IMPACT"><p>{report.estimated_impact}</p></Section>
+            <Section title="CONSERVATION ACTION PLAN">
+              <ol className="space-y-2">
+                {report.action_plan.split("\n").filter(Boolean).map((action, index) => (
+                  <li key={`${index}-${action}`} className="flex gap-3 rounded-lg border border-white/[0.05] bg-white/[0.02] px-4 py-3">
+                    <span className="shrink-0 text-[8px] font-black text-white/20">{String(index + 1).padStart(2, "0")}</span>
+                    <span>{action}</span>
+                  </li>
+                ))}
+              </ol>
+            </Section>
+          </article>
+        ) : (
+          <div className="glass-panel rounded-xl p-8 text-center">
+            <div className="text-[9px] tracking-[0.2em] text-white/35">NO GENERATED REPORTS</div>
+            <p className="mx-auto mt-3 max-w-md text-[9px] leading-relaxed tracking-[0.08em] text-white/45">{error}</p>
           </div>
-
-          {/* Report detail */}
-          <div className="lg:col-span-2 glass-panel rounded-xl p-6">
-            {(() => {
-              const s = SEVERITY_STYLES[activeReport.severity];
-              return (
-                <>
-                  <div className="mb-6 flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className="text-base font-black tracking-[0.2em]">{activeReport.id}</span>
-                        <span className={`rounded-lg border px-3 py-1 text-[7px] font-black tracking-[0.25em] ${s.color} ${s.border} ${s.bg}`}>
-                          {s.label}
-                        </span>
-                      </div>
-                      <div className="text-[8px] tracking-[0.15em] text-white/30">{activeReport.timestamp}</div>
-                    </div>
-                    <div className="flex gap-2 flex-wrap justify-end">
-                      {activeReport.dispatched.map((d) => (
-                        <span
-                          key={d}
-                          className={`rounded-md border px-2.5 py-1 text-[7px] tracking-[0.15em] ${DISPATCH_COLORS[d]}`}
-                        >
-                          {d}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Trigger */}
-                  <div className="mb-5 rounded-lg border border-white/[0.05] bg-white/[0.02] px-4 py-3">
-                    <div className="text-[7px] tracking-[0.2em] text-white/25 mb-1">TRIGGER CONDITION</div>
-                    <div className="text-[9px] tracking-[0.15em] text-white/60">{activeReport.trigger}</div>
-                  </div>
-
-                  {/* AI summary */}
-                  <div className="mb-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <div className="text-[8px] font-bold tracking-[0.25em] text-white/40">OPENAI IMPACT SUMMARY</div>
-                    </div>
-                    <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.03] p-5">
-                      <p className="text-[10px] leading-relaxed tracking-[0.1em] text-white/70">
-                        {activeReport.summary}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Action plan */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      <div className="text-[8px] font-bold tracking-[0.25em] text-white/40">CONSERVATION ACTION PLAN</div>
-                    </div>
-                    <div className="space-y-2">
-                      {activeReport.actions.map((action, i) => (
-                        <div key={i} className="flex items-start gap-3 rounded-lg border border-white/[0.05] bg-white/[0.02] px-4 py-3">
-                          <span className="text-[8px] font-black tracking-[0.1em] text-white/20 shrink-0 pt-0.5">
-                            {String(i + 1).padStart(2, "0")}
-                          </span>
-                          <span className="text-[9px] leading-relaxed tracking-[0.1em] text-white/60">{action}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex items-center gap-3 text-[7px] tracking-[0.15em] text-white/20">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/40" />
-                    GENERATED BY CASCADE AI · OPENAI · IUCN RED LIST CONTEXT RETRIEVED VIA RAG
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-5">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        <h3 className="text-[8px] font-bold tracking-[0.25em] text-white/40">{title}</h3>
+      </div>
+      <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.03] p-5 text-[10px] leading-relaxed tracking-[0.08em] text-white/65">{children}</div>
+    </section>
+  );
+}
+
+function severityFromRiskSummary(summary: string): keyof typeof SEVERITY_STYLES {
+  const upper = summary.toUpperCase();
+  if (upper.includes("CRITICAL")) return "CRITICAL";
+  if (upper.includes("HIGH")) return "HIGH";
+  if (upper.includes("MED")) return "MED";
+  return "LOW";
 }
