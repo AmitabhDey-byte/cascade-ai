@@ -15,14 +15,14 @@ export default function RiskScorePanel() {
   );
 
   return (
-    <div className="h-full rounded-xl border border-white/[0.07] bg-white/[0.02] p-6 space-y-4">
+    <div className="ops-panel h-full space-y-5 rounded-xl p-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-[10px] font-bold tracking-[0.3em] text-white/40">RISK OVERVIEW</h3>
+        <h3 className="text-[10px] font-bold tracking-[0.22em] text-white/55">REGIONAL RISK</h3>
         {loading && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
       </div>
 
-      <div className="rounded-lg border border-white/[0.06] bg-black/20 p-4">
-        <div className="text-[8px] tracking-[0.2em] text-white/30 mb-1">AVG FLOOD RISK</div>
+      <div className="rounded-xl border border-white/[0.08] bg-black/30 p-4">
+        <div className="signal-label mb-1">AVERAGE FLOOD RISK</div>
         <div className="text-3xl font-black tracking-widest"
           style={{ color: avgRisk >= 0.65 ? "#f87171" : avgRisk >= 0.45 ? "#fbbf24" : "#34d399" }}>
           {avgRisk.toFixed(2)}
@@ -34,21 +34,21 @@ export default function RiskScorePanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-red-400/20 bg-red-400/5 p-3">
-          <div className="text-[7px] tracking-[0.2em] text-white/30 mb-1">HIGH RISK</div>
+        <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3">
+          <div className="signal-label mb-1">PRIORITY</div>
           <div className="text-xl font-black text-red-400">{highRiskCount}</div>
           <div className="text-[7px] text-white/20">AREAS</div>
         </div>
-        <div className="rounded-lg border border-white/[0.06] bg-black/20 p-3">
-          <div className="text-[7px] tracking-[0.2em] text-white/30 mb-1">MONITORED</div>
+        <div className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
+          <div className="signal-label mb-1">MONITORED</div>
           <div className="text-xl font-black text-white">{tiles.length}</div>
           <div className="text-[7px] text-white/20">AREAS</div>
         </div>
       </div>
 
       {highest && highest.risk_score > 0 && (
-        <div className="rounded-lg border border-white/[0.06] bg-black/20 p-3 space-y-2">
-          <div className="text-[7px] tracking-[0.2em] text-white/30">HIGHEST RISK AREA</div>
+        <div className="rounded-xl border border-white/[0.08] bg-black/20 p-3 space-y-2">
+          <div className="signal-label">HIGHEST PRIORITY CELL</div>
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-mono text-white/60">{highest.tile_id}</span>
             <span className="text-[9px] font-black" style={{ color: highest.risk_score >= 0.65 ? "#f87171" : "#34d399" }}>

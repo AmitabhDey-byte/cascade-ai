@@ -7,9 +7,9 @@ export default function AlertTimeline() {
   const highRisk = tiles.filter(t => t.is_high_risk);
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
+    <div className="ops-panel rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-[10px] font-bold tracking-[0.3em] text-white/40">ALERT TIMELINE</h3>
+        <h3 className="text-[10px] font-bold tracking-[0.22em] text-white/55">PRIORITY ALERT FEED</h3>
         <span className="text-[8px] tracking-[0.2em] text-white/20">{highRisk.length} ACTIVE</span>
       </div>
 
@@ -26,7 +26,7 @@ export default function AlertTimeline() {
         <div className="flex gap-3 overflow-x-auto pb-1">
           {highRisk.map(tile => (
             <div key={tile.tile_id}
-              className="shrink-0 rounded-lg border border-red-400/20 bg-red-400/5 p-3 min-w-[180px]">
+              className="shrink-0 min-w-[190px] rounded-xl border border-red-400/20 bg-red-400/5 p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
                 <span className="text-[7px] tracking-widest text-red-400/60">{riskLabel(tile.risk_score)}</span>

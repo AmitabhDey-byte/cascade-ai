@@ -6,9 +6,9 @@ export default function SpeciesAtRiskCards() {
   const { species, loading, priorityCount } = useHighRiskSpecies();
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
+    <div className="ops-panel rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-[10px] font-bold tracking-[0.3em] text-white/40">SPECIES AT RISK</h3>
+        <h3 className="text-[10px] font-bold tracking-[0.22em] text-white/55">SPECIES EXPOSURE</h3>
         {priorityCount > 0 && (
           <span className="text-[8px] tracking-[0.2em] text-red-400 border border-red-400/20 bg-red-400/10 px-2 py-0.5 rounded-full">
             {priorityCount} PRIORITY
@@ -28,7 +28,7 @@ export default function SpeciesAtRiskCards() {
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {species.map((s, i) => (
-            <div key={i} className={`flex items-center justify-between rounded-lg border p-3 ${s.is_priority ? "border-red-400/20 bg-red-400/5" : "border-white/[0.05] bg-black/20"}`}>
+            <div key={i} className={`flex items-center justify-between rounded-xl border p-3 ${s.is_priority ? "border-red-400/20 bg-red-400/5" : "border-white/[0.08] bg-black/20"}`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   {s.is_priority && <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0 animate-pulse" />}

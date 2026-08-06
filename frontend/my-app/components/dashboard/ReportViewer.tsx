@@ -1,52 +1,20 @@
 "use client";
-import { ConservationReport } from "@/types";
-import { useEffect, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
+import type { RiskTile } from "@/types";
 import { useReport } from "@/hooks/userReport";
 
-const REPORT = {
-  id: "RPT-2847",
-  timestamp: "21 MAY 2026 · 06:42 UTC",
-  severity: "HIGH",
-  summary:
-    "Cycle 48 analysis flags critical flood risk across monitored areas T-23, T-24, T-33, T-44 following 187mm precipitation forecast for next 72 hours. Royal Bengal Tiger and Ganges River Shark face highest displacement risk. Immediate ranger deployment recommended.",
-  actions: [
-    "Deploy ranger team to T-23 and T-24 by 08:00 UTC",
-    "Set up temporary monitoring stations at grid perimeter",
-    "Notify IUCN South Asia desk via secure channel",
-    "Activate WhatsApp dispatch for all on-call rangers",
-    "Upload updated risk map to command portal",
-  ],
-  dispatched: ["WHATSAPP", "EMAIL", "GSHEET"],
+type ReportViewerProps = {
+  tiles: RiskTile[];
 };
 
-const DISPATCH_COLORS: Record<string, string> = {
-  WHATSAPP: "bg-emerald-400/10 text-emerald-300 border-emerald-400/20",
-  SMS:      "bg-violet-400/10 text-violet-400 border-violet-400/20",
-  EMAIL:    "bg-white/10 text-white/50 border-white/10",
-  GSHEET:   "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
-};
-
-export default function ReportViewer() {
+export default function ReportViewer({ tiles }: ReportViewerProps) {
   const [expanded, setExpanded] = useState(true);
-  const { report, refresh } = useReport();
-
-  const reportData: {
-    id: string;
-    timestamp: string;
-    severity: string;
-    summary: string;
-    actions: string[];
-    dispatched: string[];
-  } = report
-    ? {
-        id: report.id,
-        timestamp: new Date(report.generated_at).toUTCString().slice(5, 22).toUpperCase() + " UTC",
-        severity: "HIGH",
-        summary: report.estimated_impact || report.risk_summary,
-        actions: report.action_plan.split("\n").filter(Boolean),
-        dispatched: ["API"],
-      }
-    : REPORT;
+  const { report, refresh, generate, loading, generating, error } = useReport();
+  const selectedTileIds = useMemo(
+    () => tiles.filter((tile) => tile.is_high_risk).map((tile) => tile.tile_id),
+    [tiles],
+  );
 
   useEffect(() => {
     const handlePipelineUpdate = () => void refresh();
@@ -55,64 +23,82 @@ export default function ReportViewer() {
   }, [refresh]);
 
   return (
-    <div className="glass-panel rounded-xl p-5">
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
+    <div className="ops-panel rounded-xl p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <h3 className="text-[10px] font-bold tracking-[0.3em] text-white/50">OPENAI REPORT</h3>
+          <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <h3 className="text-[10px] font-bold tracking-[0.22em] text-white/55">RESPONSE BRIEF</h3>
         </div>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-[8px] tracking-[0.2em] text-white/25 hover:text-white/50 transition"
-        >
-          {expanded ? "COLLAPSE" : "EXPAND"}
-        </button>
+        {report && (
+          <button
+            onClick={() => setExpanded((current) => !current)}
+            className="text-[8px] tracking-[0.2em] text-white/25 transition hover:text-white/50"
+          >
+            {expanded ? "COLLAPSE" : "EXPAND"}
+          </button>
+        )}
       </div>
 
-      {/* Report ID row */}
-      <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+      {loading ? (
+        <div className="py-10 text-center text-[8px] tracking-[0.2em] text-white/25">LOADING LATEST REPORT</div>
+      ) : report ? (
+        <ReportDetails report={report} expanded={expanded} />
+      ) : (
+        <div className="rounded-xl border border-white/[0.08] bg-black/20 p-4">
+          <p className="text-[9px] leading-relaxed tracking-[0.08em] text-white/50">
+            No conservation report has been generated for the current forecast.
+          </p>
+          <button
+            onClick={() => void generate(selectedTileIds)}
+            disabled={generating || selectedTileIds.length === 0}
+            className="mt-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2.5 text-[8px] tracking-[0.14em] text-emerald-200 transition hover:bg-emerald-400/18 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {generating ? "GENERATING…" : "GENERATE FROM HIGH-RISK AREAS"}
+          </button>
+          {selectedTileIds.length === 0 && (
+            <p className="mt-3 text-[8px] leading-relaxed text-white/30">A report can be generated after risk data identifies at least one high-risk area.</p>
+          )}
+        </div>
+      )}
+
+      {error && <p className="mt-3 text-[8px] leading-relaxed text-red-300">{error}</p>}
+    </div>
+  );
+}
+
+function ReportDetails({ report, expanded }: { report: NonNullable<ReturnType<typeof useReport>["report"]>; expanded: boolean }) {
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span className="text-[9px] font-black tracking-[0.2em] text-white/70">{reportData.id}</span>
-          <span className="ml-3 text-[7px] tracking-[0.1em] text-white/25">{reportData.timestamp}</span>
+          <span className="text-[9px] font-black tracking-[0.2em] text-white/70">{report.id}</span>
+          <span className="ml-3 text-[7px] tracking-[0.1em] text-white/25">
+            {new Date(report.generated_at).toUTCString().slice(5, 22).toUpperCase()} UTC
+          </span>
         </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {reportData.dispatched.map((d) => (
-            <span key={d} className={`rounded border px-2 py-0.5 text-[7px] tracking-[0.1em] ${DISPATCH_COLORS[d]}`}>
-              {d}
-            </span>
-          ))}
-        </div>
+        <span className="rounded border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[7px] tracking-[0.1em] text-emerald-300">GENERATED</span>
       </div>
 
       {expanded && (
         <>
-          {/* AI Summary */}
           <div className="mb-4 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.03] p-4">
-            <div className="text-[7px] tracking-[0.25em] text-emerald-400/50 mb-2">IMPACT SUMMARY</div>
-            <p className="text-[9px] leading-relaxed tracking-[0.08em] text-white/60">{reportData.summary}</p>
+            <div className="mb-2 text-[7px] tracking-[0.25em] text-emerald-400/50">IMPACT SUMMARY</div>
+            <p className="text-[9px] leading-relaxed tracking-[0.08em] text-white/60">{report.estimated_impact || report.risk_summary}</p>
           </div>
 
-          {/* Action Plan */}
           <div>
-            <div className="text-[7px] tracking-[0.25em] text-white/30 mb-2">ACTION PLAN</div>
+            <div className="mb-2 text-[7px] tracking-[0.25em] text-white/30">ACTION PLAN</div>
             <div className="space-y-1.5">
-              {reportData.actions.map((action, i) => (
-                <div key={i} className="flex gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2.5">
-                  <span className="text-[7px] font-black text-white/20 shrink-0 pt-0.5">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
+              {report.action_plan.split("\n").filter(Boolean).map((action, index) => (
+                <div key={`${index}-${action}`} className="flex gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2.5">
+                  <span className="shrink-0 pt-0.5 text-[7px] font-black text-white/20">{String(index + 1).padStart(2, "0")}</span>
                   <span className="text-[8px] leading-relaxed tracking-[0.08em] text-white/55">{action}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="mt-4 text-[7px] tracking-[0.12em] text-white/15">
-            GENERATED BY OPENAI · RAG — IUCN + CONSERVATION PAPERS
-          </div>
         </>
       )}
-    </div>
+    </>
   );
 }

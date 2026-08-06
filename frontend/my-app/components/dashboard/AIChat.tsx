@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import type { RiskTile, SpeciesAlert } from "@/types";
+import { clearChatSession, sendChatMessage } from "@/lib/api";
 
 interface Message {
   id: string;
@@ -25,23 +26,13 @@ export interface AIChatProps {
 }
 
 export default function AIChat({ tiles = [], species = [], onClose }: AIChatProps) {
-  const [chat, setChat] = useState<AIChat>({
-    isOpen: true,
-    sessionId: undefined,
-    messages: [],
-    isLoading: false,
-  });
+  const [chat, setChat] = useState<AIChat>(() => createEmptyChat());
 
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize session on mount
   useEffect(() => {
-    const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setChat((prev) => ({ ...prev, sessionId }));
-
-    // Auto-scroll to bottom when messages change
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat.messages]);
 
@@ -67,23 +58,12 @@ export default function AIChat({ tiles = [], species = [], onClose }: AIChatProp
     setChat((prev) => ({ ...prev, isLoading: true, error: undefined }));
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/chat/chat`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content: inputValue,
-            session_id: chat.sessionId,
-            tiles: tiles.slice(0, 5), // Send top 5 risk tiles
-            species: species.slice(0, 5), // Send top 5 species
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to get response");
-
-      const data = await response.json();
+      const data = await sendChatMessage({
+        content: inputValue,
+        session_id: chat.sessionId,
+        tiles: tiles.slice(0, 5),
+        species: species.slice(0, 5),
+      });
 
       const assistantMessage: Message = {
         id: `msg-${Date.now()}-ai`,
@@ -113,20 +93,12 @@ export default function AIChat({ tiles = [], species = [], onClose }: AIChatProp
     if (!chat.sessionId) return;
 
     try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/chat/session/${chat.sessionId}`,
-        { method: "DELETE" }
-      );
+      await clearChatSession(chat.sessionId);
     } catch (error) {
       console.error("Failed to clear session:", error);
     }
 
-    setChat({
-      isOpen: true,
-      sessionId: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      messages: [],
-      isLoading: false,
-    });
+    setChat(createEmptyChat());
   };
 
   if (!chat.isOpen) return null;
@@ -167,7 +139,7 @@ export default function AIChat({ tiles = [], species = [], onClose }: AIChatProp
             <div>
               <div className="text-emerald-400/60 text-sm mb-2">Welcome to CascadeAI</div>
               <p className="text-xs text-slate-400 max-w-xs">
-                Ask me about flood risks, species vulnerabilities, or conservation strategies for the Sundarbans delta.
+                Ask about flood risks, species vulnerabilities, or conservation actions across Assam and West Bengal.
               </p>
             </div>
           </div>
@@ -235,4 +207,13 @@ export default function AIChat({ tiles = [], species = [], onClose }: AIChatProp
       </div>
     </div>
   );
+}
+
+function createEmptyChat(): AIChat {
+  return {
+    isOpen: true,
+    sessionId: `session-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    messages: [],
+    isLoading: false,
+  };
 }
