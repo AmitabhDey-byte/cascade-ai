@@ -27,7 +27,7 @@ function scoreToBg(score: number): [number, number, number, number] {
   return [234, 179, 8, 15];
 }
 
-// Pre-built 5km × 5km tile polygons for high-risk zones in the Sundarbans
+// Legacy static polygons retained for compatibility; the live map uses API tiles.
 // Replace with dynamically computed tiles from your LSTM output
 export const ALERT_ZONES: AlertZone[] = [
   {
