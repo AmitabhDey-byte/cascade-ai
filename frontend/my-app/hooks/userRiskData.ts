@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { getRiskTiles, runPipeline } from "@/lib/api";
-import type { RiskTile, PipelineResponse } from "@/types";
+import { getRiskStatus, getRiskTiles, runPipeline } from "@/lib/api";
+import type { RiskDataStatus, RiskTile, PipelineResponse } from "@/types";
 
 interface UseRiskDataReturn {
   tiles:        RiskTile[];
@@ -8,6 +8,7 @@ interface UseRiskDataReturn {
   error:        string | null;
   lastUpdated:  Date | null;
   highRiskCount: number;
+  status:       RiskDataStatus | null;
   triggerPipeline: () => Promise<PipelineResponse | null>;
   refresh:      () => void;
 }
@@ -17,12 +18,14 @@ export function useRiskData(pollIntervalMs = 30000): UseRiskDataReturn {
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
+  const [status, setStatus]             = useState<RiskDataStatus | null>(null);
 
   const fetchTiles = useCallback(async () => {
     try {
-      const data = await getRiskTiles();
+      const [data, riskStatus] = await Promise.all([getRiskTiles(), getRiskStatus()]);
       setTiles(data);
-      setLastUpdated(new Date());
+      setStatus(riskStatus);
+      setLastUpdated(riskStatus.run?.completed_at ? new Date(riskStatus.run.completed_at) : new Date());
       setError(null);
     } catch {
       setError("Failed to fetch risk tiles. Is the backend running?");
@@ -69,6 +72,7 @@ export function useRiskData(pollIntervalMs = 30000): UseRiskDataReturn {
     error,
     lastUpdated,
     highRiskCount: tiles.filter((t) => t.is_high_risk).length,
+    status,
     triggerPipeline,
     refresh: fetchTiles,
   };

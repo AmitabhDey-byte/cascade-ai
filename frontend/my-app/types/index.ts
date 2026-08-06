@@ -1,6 +1,7 @@
 // ── Risk Tiles ────────────────────────────────────────────────────────────────
 export interface RiskTile {
   tile_id:                string;
+  region?:                string | null;
   lat_min:                number;
   lat_max:                number;
   lon_min:                number;
@@ -10,6 +11,11 @@ export interface RiskTile {
   flood_probability_48h:  number;
   flood_probability_72h:  number;
   is_high_risk:           boolean;
+  soil_moisture?:         number | null;
+  precipitation_mm?:      number | null;
+  elevation_m?:           number | null;
+  weather_source?:        string | null;
+  soil_moisture_source?:  string | null;
   updated_at:             string;
 }
 
@@ -29,6 +35,7 @@ export interface SpeciesAlert {
 // ── Conservation Report ───────────────────────────────────────────────────────
 export interface ConservationReport {
   id:                   string;
+  severity?:            string;
   tile_ids:             string[];
   risk_summary:         string;
   species_affected:     string[];
@@ -67,9 +74,30 @@ export interface StellarTransaction {
 // ── Pipeline ──────────────────────────────────────────────────────────────────
 export interface PipelineResponse {
   status:           string;
+  run_id?:           string;
   tiles_processed:  number;
   high_risk_tiles:  string[];
   n8n_triggered:    boolean;
+}
+
+export interface ForecastRunStatus {
+  run_id: string;
+  status: "running" | "completed" | "failed";
+  started_at: string;
+  completed_at: string | null;
+  weather_source: string | null;
+  soil_moisture_source: string | null;
+  source_details: Record<string, unknown>;
+  tiles_processed: number;
+  high_risk_count: number;
+  error_message: string | null;
+}
+
+export interface RiskDataStatus {
+  storage: "neon" | "local_demo";
+  data_mode: "live" | "demo" | "awaiting_first_run" | "running" | "failed";
+  run: ForecastRunStatus | null;
+  message?: string;
 }
 
 // ── UI Helpers ────────────────────────────────────────────────────────────────

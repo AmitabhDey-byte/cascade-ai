@@ -7,12 +7,15 @@ import type {
   StellarToken,
   StellarTransaction,
   PipelineResponse,
+  RiskDataStatus,
   Horizon,
 } from "@/types";
 
 // ── Base client ───────────────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000",
+  // The browser always talks to the Next.js proxy. This keeps the backend URL
+  // server-side and gives local and Vercel deployments the same API surface.
+  baseURL: "/api",
   timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
@@ -35,6 +38,16 @@ type BackendSpeciesTileResponse = {
     bioclip_confidence: number;
     photo_url?: string | null;
   }>;
+};
+
+type BackendSpeciesObservation = {
+  name: string;
+  latin: string;
+  iucn_status: SpeciesAlert["iucn_status"];
+  tile_id: string;
+  observed_at?: string | null;
+  bioclip_confidence?: number | null;
+  photo_url?: string | null;
 };
 
 type BackendReport = {
@@ -64,6 +77,12 @@ function normalizeRiskTile(tile: BackendRiskTile): RiskTile {
     flood_probability_48h: tile.flood_probability_48h ?? score,
     flood_probability_72h: tile.flood_probability_72h ?? score,
     is_high_risk: tile.is_high_risk ?? score >= 0.7,
+    region: tile.region ?? null,
+    soil_moisture: tile.soil_moisture ?? null,
+    precipitation_mm: tile.precipitation_mm ?? null,
+    elevation_m: tile.elevation_m ?? null,
+    weather_source: tile.weather_source ?? null,
+    soil_moisture_source: tile.soil_moisture_source ?? null,
     updated_at: tile.updated_at ?? tile.timestamp ?? new Date().toISOString(),
   };
 }
@@ -83,9 +102,18 @@ function normalizeSpeciesAlert(species: BackendSpeciesTileResponse["species"][nu
   };
 }
 
+function normalizeSpeciesObservation(species: BackendSpeciesObservation): SpeciesAlert {
+  return normalizeSpeciesAlert({
+    ...species,
+    observed_at: species.observed_at ?? undefined,
+    bioclip_confidence: species.bioclip_confidence ?? 0,
+  });
+}
+
 function normalizeReport(report: BackendReport): ConservationReport {
   return {
     id: report.report_id,
+    severity: report.severity,
     tile_ids: report.tiles_affected,
     risk_summary: report.flood_risk_summary || report.trigger,
     species_affected: report.species_affected,
@@ -123,23 +151,13 @@ export async function getSpeciesForTile(tileId: string): Promise<SpeciesAlert[]>
 }
 
 export async function getHighRiskSpecies(): Promise<SpeciesAlert[]> {
-  // Backend exposes: GET /species/high-risk
-  const { data } = await api.get<Array<any>>("/species/high-risk");
-  // Backend returns SpeciesObservation objects.
-  return data.map((s) => {
-    const iucn = (s.iucn_status ?? s.iucn)?.toString() as SpeciesAlert["iucn_status"];
-    return {
-      tile_id: s.tile_id,
-      species_name: s.name,
-      scientific_name: s.latin,
-      iucn_status: iucn,
-      confidence_score: s.bioclip_confidence,
-      observation_date: s.observed_at ? new Date(s.observed_at).toISOString() : null,
-      photo_url: s.photo_url ?? null,
-      is_priority: iucn === "CR" || iucn === "EN",
-      created_at: s.observed_at ? new Date(s.observed_at).toISOString() : new Date().toISOString(),
-    };
-  });
+  const { data } = await api.get<BackendSpeciesObservation[]>("/species/high-risk");
+  return data.map(normalizeSpeciesObservation);
+}
+
+export async function getRiskStatus(): Promise<RiskDataStatus> {
+  const { data } = await api.get<RiskDataStatus>("/risk/status");
+  return data;
 }
 
 
@@ -174,6 +192,28 @@ export async function getMintedTokens(): Promise<StellarToken[]> {
 export async function getTransactionHistory(): Promise<StellarTransaction[]> {
   const { data } = await api.get<StellarTransaction[]>("/blockchain/transactions");
   return data;
+}
+
+export type ChatRequest = {
+  content: string;
+  session_id: string;
+  tiles: RiskTile[];
+  species: SpeciesAlert[];
+};
+
+export type ChatResponse = {
+  response: string;
+  session_id: string;
+  model_used: string;
+};
+
+export async function sendChatMessage(payload: ChatRequest): Promise<ChatResponse> {
+  const { data } = await api.post<ChatResponse>("/chat/chat", payload);
+  return data;
+}
+
+export async function clearChatSession(sessionId: string): Promise<void> {
+  await api.delete(`/chat/session/${encodeURIComponent(sessionId)}`);
 }
 
 
