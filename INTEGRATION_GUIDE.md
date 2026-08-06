@@ -1,6 +1,7 @@
 # CascadeAI Integration Guide
 
 ## All Models Connected ✓
+> **Deployment note:** This is a legacy integration reference. For the current Vercel setup, use [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md).
 
 This document summarizes the integration of all AI models and systems in the CascadeAI platform.
 

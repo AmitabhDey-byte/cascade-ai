@@ -1,6 +1,7 @@
 # Quick Start Checklist
 
 ## All Models Connected ✓✓✓
+> **Deployment note:** This is a legacy local-development guide. For the current Vercel setup and required environment variables, use [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md).
 
 ---
 

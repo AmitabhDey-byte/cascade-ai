@@ -1,4 +1,5 @@
 # 🎯 ALL MODELS NOW CONNECTED - COMPLETE INTEGRATION SUMMARY
+> **Historical implementation note:** This file describes an earlier local-only integration and contains outdated claims about deployed services. For the current two-project Vercel setup, environment variables, and production limitations, use [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md).
 
 ## What Was Done
 
